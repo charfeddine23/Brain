@@ -1,0 +1,19 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "brainLevel": { "type": "integer" },
+        "totalPoints": { "type": "integer" },
+        "flameScore": { "type": "integer" },
+        "streakDays": { "type": "integer" },
+        "shieldCount": { "type": "integer" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    }
+  }
+}

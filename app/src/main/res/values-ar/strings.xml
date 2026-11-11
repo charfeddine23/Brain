@@ -1,0 +1,73 @@
+<resources>
+    <string name="app_name">نبض الدماغ</string>
+    <string name="tagline">التطور العصبي بلمسة الزجاج السائل</string>
+    
+    <!-- Navigation -->
+    <string name="nav_dashboard">لوحة التحكم</string>
+    <string name="nav_brain_rot">مؤشر الدماغ</string>
+    <string name="nav_limits">حدود التطبيقات</string>
+    <string name="nav_rewards">البيض والدروع</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- Flame & Strike -->
+    <string name="flame_points">طاقة الشعلة</string>
+    <string name="streak_days">أيام التتابع</string>
+    <string name="shields_count">الدروع</string>
+    <string name="shield_capacity">الحد الأقصى: درعان</string>
+    <string name="shield_protected">الدرع مفعل ومحمي</string>
+    <string name="shield_broken_title">تحطم الدرع!</string>
+    <string name="shield_absorbed_msg">قام درعك بامتصاص عقوبة التجاوز! لم تخسر أي نقاط وتم الحفاظ على تتابعك.</string>
+    <string name="streak_reset_title">تم إنهاء التتابع!</string>
+    <string name="streak_reset_msg">حدث التجاوز الثالث اليوم. تمت إعادة ضبط التتابع إلى الصفر.</string>
+
+    <!-- Breach descriptions -->
+    <string name="breach_penalty_1">التجاوز الأول: خصم 10 نقاط شعلة</string>
+    <string name="breach_penalty_2">التجاوز الثاني: خصم 20 نقطة شعلة</string>
+    <string name="breach_penalty_3">التجاوز الثالث: إعادة ضبط التتابع بالكامل</string>
+    <string name="daily_breaches_today">تجاوزات اليوم</string>
+
+    <!-- Eggs -->
+    <string name="bronze_egg">البيضة البرونزية</string>
+    <string name="bronze_egg_req">تتابع 3 أيام</string>
+    <string name="silver_egg">البيضة الفضية</string>
+    <string name="silver_egg_req">تتابع 7 أيام</string>
+    <string name="gold_egg">بيضة التنين الذهبية</string>
+    <string name="gold_egg_req">تتابع 30 يوماً</string>
+    <string name="hatch_button">فقس المكافأة</string>
+    <string name="hatched_status">تم الفقس</string>
+    <string name="egg_locked">مقفل</string>
+    <string name="egg_blocked_breach">محظور! التجاوز اليومي يمنع فتح البيض اليوم.</string>
+
+    <!-- Themes & Modes -->
+    <string name="theme_liquid_glass">زجاج سائل داكن</string>
+    <string name="theme_cyber_neon">سايبر نيون زجاجي</string>
+    <string name="theme_midnight_oled">منتصف الليل OLED</string>
+    <string name="theme_emerald_glass">زمرد زجاجي</string>
+    <string name="mode_night">الوضع الليلي</string>
+    <string name="mode_day">الوضع النهاري</string>
+
+    <!-- Language -->
+    <string name="language_title">اللغة</string>
+    <string name="lang_english">English (LTR)</string>
+    <string name="lang_arabic">العربية (RTL)</string>
+
+    <!-- Usage Permission -->
+    <string name="permission_required_title">إذن الوصول للاستخدام مطلوب</string>
+    <string name="permission_required_desc">يستخدم نبض الدماغ UsageStatsManager مع أحداث ACTIVITY_RESUMED لتتبع وقت الشاشة ومرات الفتح بدقة متناهية.</string>
+    <string name="btn_grant_permission">منح إذن الاستخدام</string>
+    <string name="permission_granted">إذن الاستخدام مفعّل</string>
+
+    <!-- Limits -->
+    <string name="add_limit">إضافة حد لتطبيق</string>
+    <string name="edit_limit">تعديل الحد</string>
+    <string name="app_name_label">اسم التطبيق</string>
+    <string name="package_name_label">اسم الحزمة</string>
+    <string name="max_minutes">الحد الأقصى للدقائق اليومية</string>
+    <string name="max_launches">الحد الأقصى لمرات الفتح</string>
+    <string name="minutes_suffix">%1$d دقيقة</string>
+    <string name="launches_suffix">%1$d فتحة</string>
+    <string name="today_usage">اليوم: %1$d دقيقة | %2$d مرات فتح</string>
+    <string name="status_safe">آمن</string>
+    <string name="status_warning">تحذير</string>
+    <string name="status_breached">تم التجاوز</string>
+</resources>

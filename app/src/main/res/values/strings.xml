@@ -1,0 +1,73 @@
+<resources>
+    <string name="app_name">Brain Pulse</string>
+    <string name="tagline">Neural Evolution with Liquid Glass</string>
+    
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_brain_rot">Brain Rot</string>
+    <string name="nav_limits">App Limits</string>
+    <string name="nav_rewards">Eggs &amp; Shields</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Flame & Strike -->
+    <string name="flame_points">Flame Power</string>
+    <string name="streak_days">Day Streak</string>
+    <string name="shields_count">Shields</string>
+    <string name="shield_capacity">Max 2 Shields</string>
+    <string name="shield_protected">Shield Active</string>
+    <string name="shield_broken_title">Shield Shattered!</string>
+    <string name="shield_absorbed_msg">A shield absorbed the breach penalty! 0 points lost, streak preserved.</string>
+    <string name="streak_reset_title">Streak Terminated!</string>
+    <string name="streak_reset_msg">3rd daily breach occurred. Your streak has been reset to 0.</string>
+
+    <!-- Breach descriptions -->
+    <string name="breach_penalty_1">1st Breach: -10 Strike Points</string>
+    <string name="breach_penalty_2">2nd Breach: -20 Strike Points</string>
+    <string name="breach_penalty_3">3rd Breach: Complete Streak Reset</string>
+    <string name="daily_breaches_today">Breaches Today</string>
+
+    <!-- Eggs -->
+    <string name="bronze_egg">Bronze Egg</string>
+    <string name="bronze_egg_req">3-Day Streak</string>
+    <string name="silver_egg">Silver Egg</string>
+    <string name="silver_egg_req">7-Day Streak</string>
+    <string name="gold_egg">Dragon Egg</string>
+    <string name="gold_egg_req">30-Day Streak</string>
+    <string name="hatch_button">Hatch Reward</string>
+    <string name="hatched_status">Hatched</string>
+    <string name="egg_locked">Locked</string>
+    <string name="egg_blocked_breach">Blocked! Daily breach prevents egg hatching today.</string>
+
+    <!-- Themes & Modes -->
+    <string name="theme_liquid_glass">Liquid Glass Dark</string>
+    <string name="theme_cyber_neon">Cyber Neon Glass</string>
+    <string name="theme_midnight_oled">Midnight OLED</string>
+    <string name="theme_emerald_glass">Emerald Glass</string>
+    <string name="mode_night">Night Mode</string>
+    <string name="mode_day">Day Mode</string>
+
+    <!-- Language -->
+    <string name="language_title">Language</string>
+    <string name="lang_english">English (LTR)</string>
+    <string name="lang_arabic">العربية (RTL)</string>
+
+    <!-- Usage Permission -->
+    <string name="permission_required_title">Usage Access Required</string>
+    <string name="permission_required_desc">Brain Pulse uses Android UsageStatsManager with ACTIVITY_RESUMED events to track exact screen time and launch counts.</string>
+    <string name="btn_grant_permission">Grant Usage Access</string>
+    <string name="permission_granted">Usage Access Active</string>
+
+    <!-- Limits -->
+    <string name="add_limit">Add Habit Threshold</string>
+    <string name="edit_limit">Edit Threshold</string>
+    <string name="app_name_label">App Name</string>
+    <string name="package_name_label">Package Name</string>
+    <string name="max_minutes">Max Daily Minutes</string>
+    <string name="max_launches">Max Daily Opens</string>
+    <string name="minutes_suffix">%1$d mins</string>
+    <string name="launches_suffix">%1$d opens</string>
+    <string name="today_usage">Today: %1$d min | %2$d opens</string>
+    <string name="status_safe">SAFE</string>
+    <string name="status_warning">WARNING</string>
+    <string name="status_breached">BREACHED</string>
+</resources>

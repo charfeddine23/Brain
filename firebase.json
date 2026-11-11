@@ -1,0 +1,8 @@
+{
+  "databases": [
+    {
+      "database": "ai-studio-android-habitpul-d962091a-74f5-4023-b1a9-afe3932c8ff4",
+      "rules": "firestore.rules"
+    }
+  ]
+}

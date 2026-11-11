@@ -1,0 +1,6 @@
+{
+  "name": "Brain Pulse",
+  "description": "Brain Pulse - 100-Level Brain Evolution Engine, screen time & app launch tracker with dynamic shrinking limits, shield protection, and liquid glass dark mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
