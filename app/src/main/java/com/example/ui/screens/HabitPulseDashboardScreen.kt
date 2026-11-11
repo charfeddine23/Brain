@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -252,10 +253,10 @@ fun HabitPulseDashboardScreen(
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Elegant, Compact & Luxurious Level & Rank Container
+                // Elegant, Compact & Luxurious Level & Rank Container (Shifted close to top edge)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -331,8 +332,8 @@ fun HabitPulseDashboardScreen(
                     }
                 }
 
-                // Generous spacing above brain to prevent level/title overlap (lifted Level & Rank up cleanly)
-                Spacer(modifier = Modifier.height(28.dp))
+                // Generous spacing above brain to prevent level/title overlap (clears title completely)
+                Spacer(modifier = Modifier.height(34.dp))
 
                 // The Organic Interactive Canvas Brain (Proportionately sized with complete clearance)
                 DynamicBrainCanvas(
@@ -548,10 +549,10 @@ fun HabitPulseDashboardScreen(
         // --- 6B. The 3 Daily Evaluation Outcomes (Clean Sweep / Single Breach / Multi-Breach) ---
         LiquidGlassCard(
             modifier = Modifier.fillMaxWidth().testTag("daily_evaluation_card"),
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(18.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Header with title and Evaluate button
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                // Header with title and Evaluate button (Compact & Balanced)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -564,34 +565,32 @@ fun HabitPulseDashboardScreen(
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(glassColors.accentColor.copy(alpha = 0.15f))
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(glassColors.accentColor.copy(alpha = 0.14f))
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = glassColors.accentColor,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                text = if (isArabic) "نتائج التقييم اليومي الثلاث" else "3 Daily Evaluation Outcomes",
+                                text = if (isArabic) "نتائج التقييم اليومي" else "Daily Evaluation",
                                 fontWeight = FontWeight.Bold,
                                 color = glassColors.onSurfaceColor,
-                                fontSize = 15.sp
+                                fontSize = 13.sp
                             )
                             Text(
-                                text = if (isArabic) "ميكانيكا نهاية اليوم وتأثيرها على المخزن والدروع" else "End-of-day mechanics & buffer impact",
-                                fontSize = 11.sp,
+                                text = if (isArabic) "تأثير نهاية اليوم على الستريك والمخزن" else "End-of-day mechanics & buffer",
+                                fontSize = 10.sp,
                                 color = glassColors.onSurfaceVariantColor
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
                         onClick = { viewModel.triggerDailyEvaluation() },
@@ -599,46 +598,49 @@ fun HabitPulseDashboardScreen(
                             containerColor = glassColors.accentColor,
                             contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.testTag("evaluate_day_btn")
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .height(32.dp)
+                            .testTag("evaluate_day_btn"),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                     ) {
                         Text(
-                            text = if (isArabic) "تقييم اليوم" else "Evaluate Day",
-                            fontSize = 12.sp,
+                            text = if (isArabic) "تقييم اليوم" else "Evaluate",
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Three distinct, elegant mini-cards showing the 3 cases
+                // Three compact, harmonious mini-cards (صغيرة وأنيقة ومتناسقة)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Case A: Clean Sweep
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF10B981).copy(alpha = 0.12f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+                        color = Color(0xFF10B981).copy(alpha = 0.10f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.35f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isArabic) "أ: فوز ناصع" else "A: Clean Sweep",
-                                fontSize = 11.sp,
+                                text = if (isArabic) "أ: فوز ناصع" else "A: Clean",
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF34D399)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "0 تجاوزات (+1 ستريك)" else "0 breaches (Streak+1)",
-                                fontSize = 9.sp,
-                                color = Color.White.copy(alpha = 0.8f),
+                                text = if (isArabic) "0 تجاوز (+1)" else "0 breaches (+1)",
+                                fontSize = 8.5.sp,
+                                color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
                             )
                         }
@@ -647,25 +649,25 @@ fun HabitPulseDashboardScreen(
                     // Case B: Single Breach
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF38BDF8).copy(alpha = 0.12f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
+                        color = Color(0xFF38BDF8).copy(alpha = 0.10f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.35f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isArabic) "ب: تجاوز فردي" else "B: Single Breach",
-                                fontSize = 11.sp,
+                                text = if (isArabic) "ب: تجاوز فردي" else "B: Single",
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF38BDF8)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "تجميد الستريك (+500)" else "Freeze streak (+500)",
-                                fontSize = 9.sp,
-                                color = Color.White.copy(alpha = 0.8f),
+                                text = if (isArabic) "تجميد (+500)" else "Freeze (+500)",
+                                fontSize = 8.5.sp,
+                                color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
                             )
                         }
@@ -674,25 +676,25 @@ fun HabitPulseDashboardScreen(
                     // Case C: Multi-Breach
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFFEF4444).copy(alpha = 0.12f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f)),
+                        color = Color(0xFFEF4444).copy(alpha = 0.10f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isArabic) "ج: تجاوزات متعددة" else "C: Multi-Breach",
-                                fontSize = 11.sp,
+                                text = if (isArabic) "ج: تجاوزات" else "C: Multi",
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFF87171)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "خصم المخزن أو الدرع" else "Buffer penalty / shield",
-                                fontSize = 9.sp,
-                                color = Color.White.copy(alpha = 0.8f),
+                                text = if (isArabic) "خصم المخزن" else "Buffer penalty",
+                                fontSize = 8.5.sp,
+                                color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
                             )
                         }
@@ -873,39 +875,81 @@ fun ShrinkCategoryRow(
     isArabic: Boolean
 ) {
     val progress = if (limitMins <= 0) 0f else (currentMins.toFloat() / limitMins.toFloat()).coerceIn(0f, 1f)
-    val isOver = currentMins >= limitMins && limitMins > 0
+    val percentage = if (limitMins <= 0) 0 else ((currentMins.toFloat() / limitMins.toFloat()) * 100).toInt()
+    val isOver = limitMins > 0 && currentMins >= limitMins
+    val overtimePercent = if (isOver && limitMins > 0) percentage - 100 else 0
+    val overtimeMins = (currentMins - limitMins).coerceAtLeast(0)
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(emoji, fontSize = 14.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(categoryName, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isOver) Color(0x1DEF4444) else Color(0xFF1E293B).copy(alpha = 0.5f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isOver) Color(0x66EF4444) else Color(0x22FFFFFF)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+            // Header Row: Category on left, Used / Limit & Badges on right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(emoji, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = categoryName,
+                        fontSize = 12.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Text(
+                    text = "$currentMins / $limitMins " + (if (isArabic) "د" else "m"),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isOver) Color(0xFFF87171) else Color(0xFFCBD5E1)
+                )
             }
 
-            Text(
-                text = "$currentMins / $limitMins m ($targetShrink)",
-                fontSize = 11.sp,
-                color = if (isOver) Color(0xFFEF4444) else Color(0xFF94A3B8),
-                fontWeight = if (isOver) FontWeight.Bold else FontWeight.Normal
-            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Percentage Progress Bar with clean gradient fill
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+            ) {
+                if (progress > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    if (isOver) listOf(Color(0xFFFF7043), Color(0xFFEF4444))
+                                    else if (percentage >= 80) listOf(Color(0xFFFFD54F), Color(0xFFF59E0B))
+                                    else listOf(Color(0xFF38BDF8), Color(0xFF10B981))
+                                )
+                            )
+                    )
+                }
+
+                if (isOver) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(3.dp))
+                    )
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = if (isOver) Color(0xFFEF4444) else Color(0xFF38BDF8),
-            trackColor = Color(0xFF1E293B)
-        )
     }
 }
 
