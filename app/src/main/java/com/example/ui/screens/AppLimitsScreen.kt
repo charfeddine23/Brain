@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -45,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
@@ -362,23 +365,34 @@ fun SleekDynamicAppCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left: App Icon & Name & Category
+                // Left: Real App Icon (without any container or box) & Name & Category
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    // Category Emoji Container with Glow Ring
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(primaryColor.copy(alpha = 0.14f))
-                            .border(1.dp, primaryColor.copy(alpha = pulseAlpha * 0.6f), RoundedCornerShape(10.dp))
-                    ) {
+                    val context = LocalContext.current
+                    val appBitmap = remember(threshold.packageName) {
+                        try {
+                            val drawable = context.packageManager.getApplicationIcon(threshold.packageName)
+                            drawable.toBitmap(width = 96, height = 96).asImageBitmap()
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+
+                    if (appBitmap != null) {
+                        Image(
+                            bitmap = appBitmap,
+                            contentDescription = threshold.appName,
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                    } else {
                         Text(
                             text = category.emoji,
-                            fontSize = 16.sp
+                            fontSize = 24.sp,
+                            modifier = Modifier.size(34.dp)
                         )
                     }
 

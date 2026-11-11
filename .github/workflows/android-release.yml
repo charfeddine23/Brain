@@ -114,10 +114,12 @@ jobs:
 
       - name: Upload Single APK Artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
-          name: BrainPulse-v${{ env.VERSION_NAME }}-r${{ github.run_number }}
-          path: ${{ env.FINAL_APK_FILE }}
-          if-no-files-found: error
+            name: BrainPulse-v${{ env.VERSION_NAME }}-r${{ github.run_number }}
+            path: ${{ env.FINAL_APK_FILE }}
+            retention-days: 1
+            if-no-files-found: warn
 
       - name: Publish GitHub Release
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
