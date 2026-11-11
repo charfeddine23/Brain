@@ -331,10 +331,10 @@ fun HabitPulseDashboardScreen(
                     }
                 }
 
-                // Generous spacing above brain to prevent level/title overlap
-                Spacer(modifier = Modifier.height(18.dp))
+                // Generous spacing above brain to prevent level/title overlap (lifted Level & Rank up cleanly)
+                Spacer(modifier = Modifier.height(28.dp))
 
-                // The Organic Interactive Canvas Brain (Proportionately sized)
+                // The Organic Interactive Canvas Brain (Proportionately sized with complete clearance)
                 DynamicBrainCanvas(
                     level = uiState.brainLevel,
                     rotPercentage = uiState.brainRotPercentage,
@@ -342,12 +342,12 @@ fun HabitPulseDashboardScreen(
                     isHealing = uiState.isHealingActive,
                     isGlitching = uiState.isGlitchingActive,
                     modifier = Modifier
-                        .size(210.dp)
+                        .size(198.dp)
                         .testTag("dynamic_brain_canvas")
                 )
 
                 // Generous spacing below brain so metrics and pool bars do not collide
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(22.dp))
 
                 // 1000-Point Level Pool & Buffer Pool Metrics (Shifted down)
                 Column(modifier = Modifier.fillMaxWidth()) {

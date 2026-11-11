@@ -112,14 +112,14 @@ jobs:
           echo "FINAL_APK_FILE=$RELEASE_NAME" >> $GITHUB_ENV
           echo "Output Release APK: $RELEASE_NAME"
 
-      - name: Upload Single APK Artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-            name: BrainPulse-v${{ env.VERSION_NAME }}-r${{ github.run_number }}
-            path: ${{ env.FINAL_APK_FILE }}
-            retention-days: 1
-            if-no-files-found: warn
+          name: app-release
+          path: ${{ env.FINAL_APK_FILE }}
+          retention-days: 1 # <--- سيقوم GitHub بحذف الـ APK تلقائياً بعد 24 ساعة لتفريغ المساحة
+          if-no-files-found: warn
 
       - name: Publish GitHub Release
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
