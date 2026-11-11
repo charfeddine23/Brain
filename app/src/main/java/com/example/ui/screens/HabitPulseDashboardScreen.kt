@@ -255,30 +255,79 @@ fun HabitPulseDashboardScreen(
                 modifier = Modifier.padding(18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Rank Title & Level Badge (Shifted up with ample breathing room)
+                // Elegant, Compact & Luxurious Level & Rank Container
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 ) {
-                    Text(
-                        text = "${uiState.rankBadge} ${if (isArabic) "المستوى" else "Level"} ${uiState.brainLevel} / 100",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = glassColors.accentColor
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    // Sleek & Compact Current Level Pill (shows current level only, elegant & small)
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = glassColors.accentColor.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, glassColors.accentColor.copy(alpha = 0.4f))
+                        color = glassColors.accentColor.copy(alpha = 0.14f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            glassColors.accentColor.copy(alpha = 0.55f)
+                        ),
+                        shadowElevation = 2.dp
                     ) {
-                        Text(
-                            text = uiState.rankTitle,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = glassColors.onSurfaceColor,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = uiState.rankBadge,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isArabic) "مستوى ${uiState.brainLevel}" else "LVL ${uiState.brainLevel}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = glassColors.accentColor,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Luxurious, Sleek & Compact Rank Title Container (فخم وصغير وأنيق)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF0F172A).copy(alpha = 0.85f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                listOf(
+                                    glassColors.accentColor.copy(alpha = 0.6f),
+                                    Color(0xFFA855F7).copy(alpha = 0.5f),
+                                    Color(0xFF38BDF8).copy(alpha = 0.6f)
+                                )
+                            )
+                        ),
+                        shadowElevation = 4.dp
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(glassColors.accentColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = uiState.rankTitle,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                letterSpacing = 0.3.sp,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
 
