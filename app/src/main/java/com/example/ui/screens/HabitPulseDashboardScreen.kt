@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
@@ -37,6 +39,8 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +51,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +71,7 @@ import com.example.model.InventoryItemType
 import com.example.model.QuestItem
 import com.example.model.ShieldEvent
 import com.example.ui.components.DynamicBrainCanvas
+import com.example.ui.components.FireParticleContainer
 import com.example.ui.components.GlowingRewardsNavChip
 import com.example.ui.components.LiquidGlassCard
 import com.example.ui.theme.LocalGlassColors
@@ -77,13 +83,14 @@ fun HabitPulseDashboardScreen(
     uiState: HabitPulseUiState,
     viewModel: HabitPulseViewModel,
     onNavigateToLimits: () -> Unit = {},
-    onNavigateToRewards: () -> Unit = {}
+    onNavigateToRewards: () -> Unit = {},
+    onNavigateToInventory: () -> Unit = {}
 ) {
     val glassColors = LocalGlassColors.current
     val isArabic = uiState.isArabic
     val scrollState = rememberScrollState()
 
-    var showInventorySheet by remember { mutableStateOf(false) }
+    var itemExplaining by remember { mutableStateOf<InventoryItemType?>(null) }
 
     Column(
         modifier = Modifier
@@ -125,44 +132,48 @@ fun HabitPulseDashboardScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Beautifully Styled Flame Streak Chip (Showing correct Streak Days)
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(0x33FF5722),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.2.dp,
-                        androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            listOf(Color(0xFFFF9800), Color(0xFFFF5722))
-                        )
-                    ),
-                    shadowElevation = 4.dp,
-                    modifier = Modifier.testTag("flame_streak_chip")
+                // Beautifully Styled Flame Streak Chip with dynamic rising fire particle sparks
+                FireParticleContainer(
+                    streakDays = uiState.streakDays
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0x33FF5722),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.2.dp,
+                            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                listOf(Color(0xFFFF9800), Color(0xFFFF5722))
+                            )
+                        ),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier.testTag("flame_streak_chip")
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x33FF5722))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = Color(0xFFFF7043),
-                                modifier = Modifier.size(16.dp)
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x33FF5722))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF7043),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${uiState.streakDays}",
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFFE0B2),
+                                fontSize = 14.sp
                             )
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${uiState.streakDays}",
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFFFFE0B2),
-                            fontSize = 14.sp
-                        )
                     }
                 }
             }
@@ -760,22 +771,34 @@ fun HabitPulseDashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onNavigateToInventory() }
+                    ) {
                         Text("🎒", fontSize = 18.sp)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isArabic) "خزينة الجرعات والعناصر (7 عناصر)" else "Inventory & Potions Vault",
+                            text = if (isArabic) "المستودع والخزينة العصبية" else "Inventory & Potions Vault",
                             fontWeight = FontWeight.Bold,
                             color = glassColors.onSurfaceColor,
                             fontSize = 15.sp
                         )
                     }
 
-                    Text(
-                        text = "${uiState.inventory.values.sum()} ${if (isArabic) "عنصر" else "items"}",
-                        fontSize = 12.sp,
-                        color = glassColors.accentColor
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = glassColors.accentColor.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, glassColors.accentColor.copy(alpha = 0.4f)),
+                        modifier = Modifier.clickable { onNavigateToInventory() }
+                    ) {
+                        Text(
+                            text = "${uiState.inventory.values.sum()} ${if (isArabic) "عناصر ➔" else "items ➔"}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = glassColors.accentColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -793,6 +816,7 @@ fun HabitPulseDashboardScreen(
                             item = item,
                             count = count,
                             isArabic = isArabic,
+                            onInfoClick = { itemExplaining = item },
                             onUse = { viewModel.useInventoryItem(item) }
                         )
                     }
@@ -862,6 +886,164 @@ fun HabitPulseDashboardScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Interactive Explainer Dialog for Items on Dashboard
+    itemExplaining?.let { item ->
+        val count = uiState.inventory[item] ?: 0
+        AlertDialog(
+            onDismissRequest = { itemExplaining = null },
+            containerColor = Color(0xFF0F172A),
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFCBD5E1),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.testTag("dash_item_explainer_dialog"),
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(item.rarity.colorHex).copy(alpha = 0.2f))
+                            .border(1.dp, Color(item.rarity.colorHex), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(item.iconEmoji, fontSize = 22.sp)
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isArabic) item.titleAr else item.titleEn,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(item.rarity.colorHex).copy(alpha = 0.25f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isArabic) item.rarity.labelAr else item.rarity.labelEn,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(item.rarity.colorHex),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1E293B).copy(alpha = 0.8f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isArabic) "📋 ما يفعله هذا العنصر:" else "📋 What it does:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF38BDF8)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isArabic) item.descriptionAr else item.descriptionEn,
+                                fontSize = 12.sp,
+                                color = Color.White,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF064E3B).copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF059669)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🎯", fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isArabic) "كيفية الحصول عليه:" else "How to obtain:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF34D399)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isArabic) item.howToObtainAr else item.howToObtainEn,
+                                fontSize = 12.sp,
+                                color = Color(0xFFE2E8F0),
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isArabic) "الكمية المتوفرة في حقيبتك:" else "Current stock in inventory:",
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                        Text(
+                            text = "x$count",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (count > 0) Color(0xFF38BDF8) else Color(0xFF64748B)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (count > 0) {
+                    Button(
+                        onClick = {
+                            viewModel.useInventoryItem(item)
+                            itemExplaining = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(item.rarity.colorHex)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(
+                            text = if (isArabic) "استخدام الآن" else "Use Now",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemExplaining = null }) {
+                    Text(
+                        text = if (isArabic) "إغلاق" else "Close",
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -958,19 +1140,42 @@ fun InventoryItemCard(
     item: InventoryItemType,
     count: Int,
     isArabic: Boolean,
+    onInfoClick: (() -> Unit)? = null,
     onUse: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = Color(item.rarity.colorHex).copy(alpha = 0.15f),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(item.rarity.colorHex).copy(alpha = 0.5f)),
-        modifier = Modifier.width(145.dp)
+        modifier = Modifier.width(145.dp).testTag("dash_item_card_${item.id}")
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(item.iconEmoji, fontSize = 28.sp)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = item.iconEmoji,
+                    fontSize = 28.sp,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                if (onInfoClick != null) {
+                    IconButton(
+                        onClick = onInfoClick,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .align(Alignment.TopEnd)
+                            .testTag("dash_item_info_btn_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "Info",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = if (isArabic) item.titleAr else item.titleEn,

@@ -771,7 +771,7 @@ private fun TutorialStepFour(isArabic: Boolean) {
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = if (isArabic) "خزينة البيض والمهام والعيادة العصبية" else "Egg Vault, Quests & Neural Clinic",
+            text = if (isArabic) "خزينة البيض والمهام والمستودع العصبي" else "Egg Vault, Quests & Neural Inventory",
             fontSize = 18.sp,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
@@ -821,31 +821,31 @@ private fun TutorialStepFour(isArabic: Boolean) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Neural Clinic Note
+        // Neural Inventory Note
         Surface(
             shape = RoundedCornerShape(12.dp),
             color = Color(0xFF0F172A).copy(alpha = 0.8f),
-            border = BorderStroke(1.dp, Color(0xFF00FFA3).copy(alpha = 0.4f)),
+            border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier.padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🧪", fontSize = 18.sp)
+                Text("🎒", fontSize = 18.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = if (isArabic) "العيادة العصبية (Clinic):" else "Brain Clinic:",
+                        text = if (isArabic) "المستودع والخزينة (Inventory):" else "Inventory & Vault:",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00FFA3)
+                        color = Color(0xFF38BDF8)
                     )
                     Text(
                         text = if (isArabic) {
-                            "استخدم جرعات التطهير والشفاء لإزالة التعفن الدماغي واستعادة صفاء عقلك في أي وقت!"
+                            "يحتوي على جميع العقاقير والمفاتيح ودروع الحماية مع زر ℹ️ لشرح كل عنصر وكيفية الحصول عليه!"
                         } else {
-                            "Use detox & healing potions from your vault to purge brain rot and restore mental clarity anytime!"
+                            "Houses all potions, skip keys, and defense shields with an ℹ️ explainer on how to obtain each item!"
                         },
                         fontSize = 10.sp,
                         color = Color(0xFFCBD5E1)

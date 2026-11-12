@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build-and-release:
@@ -35,57 +36,65 @@ jobs:
       - name: Make gradlew Executable
         run: chmod +x gradlew || true
 
-      - name: Extract App Version Information
-        id: app_version
+      - name: Calculate Dynamic Version
+        id: dynamic_version
         run: |
-          VERSION_NAME=$(grep 'versionName = ' app/build.gradle.kts | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
-          VERSION_CODE=$(grep 'versionCode = ' app/build.gradle.kts | head -n 1 | sed -E 's/.*= *([0-9]+).*/\1/')
-          if [ -z "$VERSION_NAME" ]; then VERSION_NAME="1.0"; fi
-          if [ -z "$VERSION_CODE" ]; then VERSION_CODE="1"; fi
-          echo "Extracted Version: ${VERSION_NAME} (code: ${VERSION_CODE})"
+          # Count total commits on current branch for monotonic increment
+          COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 1)
+          if [ "$COMMIT_COUNT" -lt 1 ]; then COMMIT_COUNT=1; fi
+          
+          RUN_NUM="${{ github.run_number }}"
+          if [ -z "$RUN_NUM" ] || [ "$RUN_NUM" -lt 1 ]; then RUN_NUM=1; fi
+          
+          # Semantic versioning: 1.<commit_count>.<run_number>
+          VERSION_NAME="1.${COMMIT_COUNT}.${RUN_NUM}"
+          VERSION_CODE=$((COMMIT_COUNT * 100 + RUN_NUM))
+          
+          echo "Dynamic Version Name: ${VERSION_NAME}"
+          echo "Dynamic Version Code: ${VERSION_CODE}"
           echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
           echo "VERSION_CODE=${VERSION_CODE}" >> $GITHUB_ENV
 
-      - name: Prepare Release Keystore (Auto-Healing)
+      - name: Prepare Fixed Deterministic Signing Keystore
         id: keystore_prep
         run: |
           KEYSTORE_FILE="${{ github.workspace }}/release.jks"
-          DEFAULT_PASS="androidreleasekey2026"
-          DEFAULT_ALIAS="habitpulse"
+          KEY_PASS="androidreleasekey2026"
+          KEY_ALIAS="habitpulse"
 
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "Decoding custom KEYSTORE_BASE64 from GitHub Secrets..."
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_FILE"
+            STORE_P="${{ secrets.KEYSTORE_PASSWORD }}"
+            if [ -z "$STORE_P" ]; then STORE_P="$KEY_PASS"; fi
+            ALIAS_P="${{ secrets.KEY_ALIAS }}"
+            if [ -z "$ALIAS_P" ]; then ALIAS_P="$KEY_ALIAS"; fi
+            PASS_P="${{ secrets.KEY_PASSWORD }}"
+            if [ -z "$PASS_P" ]; then PASS_P="$STORE_P"; fi
             
-            # Read passwords with fallbacks to avoid empty strings
-            STORE_PASS="${{ secrets.KEYSTORE_PASSWORD }}"
-            if [ -z "$STORE_PASS" ]; then STORE_PASS="${{ secrets.STORE_PASSWORD }}"; fi
-            if [ -z "$STORE_PASS" ]; then STORE_PASS="$DEFAULT_PASS"; fi
-            
-            KEY_AL="${{ secrets.KEY_ALIAS }}"
-            if [ -z "$KEY_AL" ]; then KEY_AL="$DEFAULT_ALIAS"; fi
-            
-            KEY_PASS="${{ secrets.KEY_PASSWORD }}"
-            if [ -z "$KEY_PASS" ]; then KEY_PASS="$STORE_PASS"; fi
-
-            echo "STORE_PASS=$STORE_PASS" >> $GITHUB_ENV
-            echo "KEY_AL=$KEY_AL" >> $GITHUB_ENV
-            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
+            echo "STORE_PASS=$STORE_P" >> $GITHUB_ENV
+            echo "KEY_AL=$ALIAS_P" >> $GITHUB_ENV
+            echo "KEY_PASS=$PASS_P" >> $GITHUB_ENV
+          elif [ -f "${{ github.workspace }}/debug.keystore" ]; then
+            echo "Using repository debug.keystore as fixed signing key for seamless updates across builds..."
+            cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
+            echo "STORE_PASS=android" >> $GITHUB_ENV
+            echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
+            echo "KEY_PASS=android" >> $GITHUB_ENV
           else
-            echo "KEYSTORE_BASE64 secret was not provided. Auto-generating dedicated release keystore..."
+            echo "Generating fallback keystore with fixed credentials..."
             keytool -genkeypair -v \
               -keystore "$KEYSTORE_FILE" \
-              -alias "$DEFAULT_ALIAS" \
+              -alias "$KEY_ALIAS" \
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
-              -storepass "$DEFAULT_PASS" \
-              -keypass "$DEFAULT_PASS" \
-              -dname "CN=Habit Pulse, OU=Mobile, O=AI Studio, L=Global, S=Global, C=US"
-            
-            echo "STORE_PASS=$DEFAULT_PASS" >> $GITHUB_ENV
-            echo "KEY_AL=$DEFAULT_ALIAS" >> $GITHUB_ENV
-            echo "KEY_PASS=$DEFAULT_PASS" >> $GITHUB_ENV
+              -storepass "$KEY_PASS" \
+              -keypass "$KEY_PASS" \
+              -dname "CN=Brain Pulse, OU=Mobile, O=AI Studio, L=Global, S=Global, C=US"
+            echo "STORE_PASS=$KEY_PASS" >> $GITHUB_ENV
+            echo "KEY_AL=$KEY_ALIAS" >> $GITHUB_ENV
+            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
           fi
 
           echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> $GITHUB_ENV
@@ -94,12 +103,14 @@ jobs:
         run: gradle :app:assembleRelease --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Djava.awt.headless=true"
+          VERSION_NAME: ${{ env.VERSION_NAME }}
+          VERSION_CODE: ${{ env.VERSION_CODE }}
           KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
           STORE_PASSWORD: ${{ env.STORE_PASS }}
           KEY_ALIAS: ${{ env.KEY_AL }}
           KEY_PASSWORD: ${{ env.KEY_PASS }}
 
-      - name: Locate and Standardize Release APK Filename
+      - name: Format Release APK Filename (Brain.v1.x.x.apk)
         id: organize_apk
         run: |
           FOUND_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
@@ -107,46 +118,72 @@ jobs:
             echo "Error: Release APK not generated!"
             exit 1
           fi
-          RELEASE_NAME="BrainPulse-v${{ env.VERSION_NAME }}-b${{ env.VERSION_CODE }}-r${{ github.run_number }}.apk"
+          # Exact requested format: Brain.v1.x.x.apk
+          RELEASE_NAME="Brain.v${{ env.VERSION_NAME }}.apk"
           cp "$FOUND_APK" "$RELEASE_NAME"
           echo "FINAL_APK_FILE=$RELEASE_NAME" >> $GITHUB_ENV
-          echo "Output Release APK: $RELEASE_NAME"
+          echo "Formatted Output APK: $RELEASE_NAME"
 
-      - name: Upload Release APK
+      - name: Clean Up Old Releases (Keep Only Latest Release)
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Cleaning up prior releases and git tags to maintain only the latest release..."
+          # List all existing releases and delete them so only the latest release remains
+          OLD_RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName' 2>/dev/null || true)
+          for tag in $OLD_RELEASES; do
+            echo "Removing old release: $tag"
+            gh release delete "$tag" -y --cleanup-tag || true
+          done
+
+      - name: Clean Up Old Workflow Runs (Auto-Prune Actions Storage)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Pruning older workflow run logs and artifacts to free up Actions storage..."
+          OLD_RUNS=$(gh run list --workflow=android-release.yml --limit 50 --json databaseId -q '.[].databaseId' 2>/dev/null || true)
+          CURRENT_RUN="${{ github.run_id }}"
+          for run_id in $OLD_RUNS; do
+            if [ "$run_id" != "$CURRENT_RUN" ]; then
+              echo "Deleting old workflow run: $run_id"
+              gh run delete "$run_id" || true
+            fi
+          done
+
+      - name: Upload Temporary Release APK Artifact
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: app-release
           path: ${{ env.FINAL_APK_FILE }}
-          retention-days: 1 # <--- سيقوم GitHub بحذف الـ APK تلقائياً بعد 24 ساعة لتفريغ المساحة
+          retention-days: 1
           if-no-files-found: warn
 
-      - name: Publish GitHub Release
+      - name: Publish Latest GitHub Release (Brain.v1.x.x.apk)
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION_NAME }}-build${{ github.run_number }}
-          name: "Brain Pulse v${{ env.VERSION_NAME }} (Build #${{ github.run_number }})"
+          tag_name: v${{ env.VERSION_NAME }}
+          name: "Brain Pulse v${{ env.VERSION_NAME }}"
           generate_release_notes: true
           make_latest: true
           body: |
-            ## 🚀 Brain Pulse Release v${{ env.VERSION_NAME }} (Build #${{ github.run_number }})
+            ## 🧠 Brain Pulse v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})
 
-            ### 📦 Release Information
-            - **App Version:** `${{ env.VERSION_NAME }}` (Code: `${{ env.VERSION_CODE }}`)
-            - **Commit SHA:** `${{ github.sha }}`
-            - **Branch:** `${{ github.ref_name }}`
-            - **Trigger:** Automatic build & release triggered by `${{ github.event_name }}`
+            ### 📦 معلومات التحديث
+            - **اسم ملف التثبيت:** `${{ env.FINAL_APK_FILE }}`
+            - **رقم الإصدار (Version):** `${{ env.VERSION_NAME }}` (Version Code: `${{ env.VERSION_CODE }}`)
+            - **طريقة التثبيت:** موقع بنفس شهادة التوقيع الثابتة لتثبيته مباشرة فوق النسخة السابقة دون الحاجة لحذف التطبيق.
+            - **حالة التخزين:** تم تنظيف الإصدارات وعمليات التشغيل السابقة ليبقى هذا الإصدار كأحدث نسخة دائماً.
 
-            ### 🛡️ Features Included:
-            - **100-Level Brain Evolution Engine**: Logarithmic 100-level organic visual brain with quantum aura.
-            - **1000-Point Level Pool**: Dynamic unconstrained promotions across levels.
-            - **Anti-Cheat Tracking**: Foreground active time only with 60-second minimum session filter.
-            - **The 3 Daily Outcomes**: Case A (Clean Sweep), Case B (Single Breach frozen streak), Case C (Multi-Breach with 1000-pt buffer & unrestricted demotion).
-            - **Escalating Daily Streak Bonuses**: Up to +2,000 pts/day for long-term discipline.
-            - **Self-Package Exclusion**: Time spent in Brain Pulse never triggers penalties.
-            - **Liquid Glass Dark Theme**: 4 dynamic glass themes with bilingual English & Arabic.
+            ### 🎮 محرك اللعبة ونظام التطور:
+            - **بدء من الصفر (Fresh Start)**: تم تصفير جميع المستويات والجوائز والألقاب ليبدأ المستخدم من المستوى الأول بشعلة 100% وتحديات حقيقية.
+            - **تتبع ذكي ومكافح للغش**: احتساب وقت الشاشة الفعلي في الواجهة فقط وتجاهل الفتح العرضي.
+            - **تصميم زجاجي عصري وسلس**: واجهة فائقة الأناقة مع دعم كامل للغة العربية.
           files: ${{ env.FINAL_APK_FILE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

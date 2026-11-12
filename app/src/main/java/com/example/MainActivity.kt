@@ -28,12 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LocalPharmacy
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Settings
@@ -68,6 +70,7 @@ import com.example.ui.screens.BrainRotScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.EggRewardsScreen
 import com.example.ui.screens.HabitPulseDashboardScreen
+import com.example.ui.screens.InventoryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.HabitPulseTheme
 import com.example.ui.theme.LocalGlassColors
@@ -87,12 +90,12 @@ enum class NavigationTab(
         inactiveIcon = Icons.Outlined.Dashboard,
         testTag = "nav_tab_dashboard"
     ),
-    CLINIC(
-        titleEn = "Clinic",
-        titleAr = "العيادة",
-        activeIcon = Icons.Filled.LocalPharmacy,
-        inactiveIcon = Icons.Outlined.LocalPharmacy,
-        testTag = "nav_tab_clinic"
+    INVENTORY(
+        titleEn = "Inventory",
+        titleAr = "المستودع",
+        activeIcon = Icons.Filled.Inventory2,
+        inactiveIcon = Icons.Outlined.Inventory2,
+        testTag = "nav_tab_inventory"
     ),
     BRAIN_ROT(
         titleEn = "Brain Rot",
@@ -208,9 +211,10 @@ fun HabitPulseApp(
                         uiState = uiState,
                         viewModel = viewModel,
                         onNavigateToLimits = { currentTab = NavigationTab.LIMITS },
-                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS }
+                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS },
+                        onNavigateToInventory = { currentTab = NavigationTab.INVENTORY }
                     )
-                    NavigationTab.CLINIC -> BrainClinicScreen(
+                    NavigationTab.INVENTORY -> InventoryScreen(
                         uiState = uiState,
                         viewModel = viewModel
                     )

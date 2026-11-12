@@ -26,11 +26,11 @@ class HabitPulseRepository(context: Context) {
     fun getFlameScore(): Int = prefs.getInt(KEY_FLAME_SCORE, 100)
     fun setFlameScore(score: Int) = prefs.edit().putInt(KEY_FLAME_SCORE, score.coerceIn(0, 100)).apply()
 
-    fun getStreakDays(): Int = prefs.getInt(KEY_STREAK_DAYS, 5) // default starter streak of 5 days so users can test egg unlocks!
+    fun getStreakDays(): Int = prefs.getInt(KEY_STREAK_DAYS, 0) // Start fresh at 0 days!
     fun setStreakDays(days: Int) = prefs.edit().putInt(KEY_STREAK_DAYS, maxOf(0, days)).apply()
 
     // --- Shields (Max 2) ---
-    fun getShieldCount(): Int = prefs.getInt(KEY_SHIELD_COUNT, 1).coerceIn(0, 2)
+    fun getShieldCount(): Int = prefs.getInt(KEY_SHIELD_COUNT, 0).coerceIn(0, 2)
     fun setShieldCount(count: Int) = prefs.edit().putInt(KEY_SHIELD_COUNT, count.coerceIn(0, 2)).apply()
 
     // --- Daily Breaches ---
@@ -71,11 +71,11 @@ class HabitPulseRepository(context: Context) {
     fun setDarkMode(isDark: Boolean) = prefs.edit().putBoolean(KEY_IS_DARK_MODE, isDark).apply()
 
     // --- 100-Level System (Up to 1,000,000 XP) ---
-    fun getTotalXp(): Long = prefs.getLong(KEY_TOTAL_XP, 125_000L).coerceIn(0L, 1_000_000L)
+    fun getTotalXp(): Long = prefs.getLong(KEY_TOTAL_XP, 0L).coerceIn(0L, 1_000_000L)
     fun setTotalXp(xp: Long) = prefs.edit().putLong(KEY_TOTAL_XP, xp.coerceIn(0L, 1_000_000L)).apply()
 
     // --- Dynamic Brain Rot (0% to 100%) ---
-    fun getBrainRotPercentage(): Float = prefs.getFloat(KEY_BRAIN_ROT, 15f).coerceIn(0f, 100f)
+    fun getBrainRotPercentage(): Float = prefs.getFloat(KEY_BRAIN_ROT, 0f).coerceIn(0f, 100f)
     fun setBrainRotPercentage(rot: Float) = prefs.edit().putFloat(KEY_BRAIN_ROT, rot.coerceIn(0f, 100f)).apply()
 
     fun getLastDetoxTimestamp(): Long = prefs.getLong(KEY_LAST_DETOX, System.currentTimeMillis())
@@ -202,8 +202,8 @@ class HabitPulseRepository(context: Context) {
                 appName = "Instagram",
                 maxMinutes = 30,
                 maxLaunches = 10,
-                currentMinutes = 12,
-                currentLaunches = 5,
+                currentMinutes = 0,
+                currentLaunches = 0,
                 category = "Social"
             ),
             AppThreshold(
@@ -211,8 +211,8 @@ class HabitPulseRepository(context: Context) {
                 appName = "TikTok",
                 maxMinutes = 20,
                 maxLaunches = 8,
-                currentMinutes = 18,
-                currentLaunches = 7,
+                currentMinutes = 0,
+                currentLaunches = 0,
                 category = "Entertainment"
             ),
             AppThreshold(
@@ -220,8 +220,8 @@ class HabitPulseRepository(context: Context) {
                 appName = "YouTube",
                 maxMinutes = 45,
                 maxLaunches = 12,
-                currentMinutes = 25,
-                currentLaunches = 4,
+                currentMinutes = 0,
+                currentLaunches = 0,
                 category = "Video"
             )
         )
@@ -231,13 +231,7 @@ class HabitPulseRepository(context: Context) {
     fun getInventory(): Map<com.example.model.InventoryItemType, Int> {
         val map = mutableMapOf<com.example.model.InventoryItemType, Int>()
         for (item in com.example.model.InventoryItemType.entries) {
-            val defaultCount = when (item) {
-                com.example.model.InventoryItemType.DAILY_QUEST_SKIP_KEY -> 2
-                com.example.model.InventoryItemType.SHIELD_24H -> 1
-                com.example.model.InventoryItemType.MYSTERY_BOX -> 1
-                else -> 0
-            }
-            val count = prefs.getInt("item_${item.id}", defaultCount)
+            val count = prefs.getInt("item_${item.id}", 0) // Start with 0 items
             map[item] = count.coerceAtLeast(0)
         }
         return map
@@ -272,10 +266,15 @@ class HabitPulseRepository(context: Context) {
     fun setLastClaimedMilestoneStreak(streak: Int) =
         prefs.edit().putInt(KEY_CLAIMED_MILESTONE, streak).apply()
 
-    // --- Tutorial Completion ---
+    // --- Tutorial ---
     fun hasCompletedTutorial(): Boolean = prefs.getBoolean(KEY_HAS_COMPLETED_TUTORIAL, false)
     fun setTutorialCompleted(completed: Boolean) =
         prefs.edit().putBoolean(KEY_HAS_COMPLETED_TUTORIAL, completed).apply()
+
+    // --- Reset All User Data & Game Progress ---
+    fun clearAllUserData() {
+        prefs.edit().clear().apply()
+    }
 
     companion object {
         private const val KEY_FLAME_SCORE = "flame_score"

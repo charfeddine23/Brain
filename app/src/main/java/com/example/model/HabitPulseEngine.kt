@@ -13,70 +13,86 @@ enum class InventoryItemType(
     val descriptionEn: String,
     val descriptionAr: String,
     val iconEmoji: String,
-    val rarity: ItemRarity
+    val rarity: ItemRarity,
+    val howToObtainEn: String,
+    val howToObtainAr: String
 ) {
     DAILY_QUEST_SKIP_KEY(
         id = "daily_skip_key",
         titleEn = "Daily Quest Skip Key",
         titleAr = "مفتاح تخطي المهمة اليومية",
-        descriptionEn = "Instantly auto-completes 1 daily quest without effort.",
-        descriptionAr = "يكمل تلقائياً مهمة يومية واحدة بدون جهد.",
+        descriptionEn = "Instantly auto-completes 1 daily quest without effort, immediately granting its full XP reward.",
+        descriptionAr = "يكمل تلقائياً مهمة يومية واحدة بدون جهد وبنقرة واحدة، ويمنحك نقاط خبرتها كاملة فوراً.",
         iconEmoji = "🗝️",
-        rarity = ItemRarity.COMMON
+        rarity = ItemRarity.COMMON,
+        howToObtainEn = "Obtained from 5-day streak milestone drops or found inside Mystery Cyber Boxes.",
+        howToObtainAr = "يُمنح من سحب مكافآت تتابع كل 5 أيام متتالية، أو عند فتح صناديق السايبر الغامضة."
     ),
     WEEKLY_QUEST_SKIP_KEY(
         id = "weekly_skip_key",
         titleEn = "Weekly Quest Skip Key",
         titleAr = "مفتاح تخطي المهمة الأسبوعية",
-        descriptionEn = "Instantly auto-completes 1 hardcore weekly quest.",
-        descriptionAr = "يكمل تلقائياً مهمة أسبوعية شاقة وفورية.",
+        descriptionEn = "Instantly auto-completes 1 hardcore weekly quest, bypassing difficult neural requirements.",
+        descriptionAr = "يكمل تلقائياً مهمة أسبوعية شاقة وفورية بنقرة زر، متجاوزاً الشروط الصعبة.",
         iconEmoji = "🔑",
-        rarity = ItemRarity.RARE
+        rarity = ItemRarity.RARE,
+        howToObtainEn = "Synthesized by fusing 3 Daily Keys in the Fusion Lab, from 5-day streak milestones, or Mystery Boxes.",
+        howToObtainAr = "يمكن دمجه بصهر 3 مفاتيح يومية في مختبر الدمج، أو الحصول عليه من مكافأة كل 5 أيام، أو صناديق السايبر."
     ),
     BRAIN_HEALING_POTION(
         id = "healing_potion",
         titleEn = "Brain Healing Potion",
         titleAr = "جرعة التعافي الذهني",
-        descriptionEn = "Promotes neurogenesis: Instantly elevates your brain by +1 Level and purges rot.",
-        descriptionAr = "يعزز التجدد العصبي: يرفع دماغك فوراً بمقدار +1 مستوى ويمحو التعفن.",
+        descriptionEn = "Promotes neurogenesis: Instantly elevates your brain by +1 full level and completely purges rot.",
+        descriptionAr = "يعزز التجدد العصبي: يرفع عقلك فوراً بمقدار +1 مستوى كامل ويمحو تعفن الدماغ ويجدد التركيز.",
         iconEmoji = "🧪",
-        rarity = ItemRarity.RARE
+        rarity = ItemRarity.RARE,
+        howToObtainEn = "Synthesized in the Fusion Lab using 2 Weekly Keys, or dropped from streak milestones and Mystery Boxes.",
+        howToObtainAr = "يتم تخليقها في مختبر الدمج مقابل مفتاحين أسبوعيين، أو إسقاطها من مكافآت التتابع وصناديق السايبر."
     ),
     LEGENDARY_POTION(
         id = "legendary_potion",
         titleEn = "Legendary Potion",
         titleAr = "الجرعة الأسطورية",
-        descriptionEn = "Adds +1 Brain Level and auto-completes all active daily & weekly quests!",
-        descriptionAr = "يمنح +1 مستوى ذهني ويكمل تلقائياً جميع المهمات اليومية والأسبوعية النشطة!",
+        descriptionEn = "The ultimate neural catalyst: Adds +1 Brain Level and auto-completes all active daily & weekly quests!",
+        descriptionAr = "المحفز العصبي الأعظم: يمنح +1 مستوى ذهني إضافي ويكمل تلقائياً جميع المهمات اليومية والأسبوعية النشطة فوراً!",
         iconEmoji = "⚗️",
-        rarity = ItemRarity.LEGENDARY
+        rarity = ItemRarity.LEGENDARY,
+        howToObtainEn = "The rarest item! Guaranteed chance on Day 30 milestones, or ultra-rare drop from Mystery Cyber Boxes.",
+        howToObtainAr = "أندر عناصر اللعبة على الإطلاق! فرصة خاصة عند تتابع 30 يوماً متتالياً أو جائزة كبرى نادرة جداً من صناديق السايبر."
     ),
     SHIELD_24H(
         id = "shield_24h",
         titleEn = "24-Hour Shield",
         titleAr = "درع حماية 24 ساعة",
-        descriptionEn = "Absorbs time breaches and grants complete immunity from demotion for 24 hours.",
-        descriptionAr = "يمتص تجاوزات الوقت ويمنح حصانة تامة من الهبوط لمدة 24 ساعة.",
+        descriptionEn = "Absorbs time breaches and grants complete immunity from demotion or streak reset for 24 hours.",
+        descriptionAr = "يمتص تجاوزات الوقت ويمنح عقلك حصانة تامة من الهبوط أو تصفير السلسلة لمدة 24 ساعة كاملة.",
         iconEmoji = "🛡️",
-        rarity = ItemRarity.COMMON
+        rarity = ItemRarity.COMMON,
+        howToObtainEn = "Forged in the Fusion Lab with 2 Daily Keys, dropped from 5-day streaks, or hatched from the Silver Egg (7 Days).",
+        howToObtainAr = "يُصاغ في مختبر الدمج مقابل مفتاحين يوميين، أو من سحب مكافأة الـ 5 أيام، أو عند فقس البيضة الفضية (7 أيام)."
     ),
     SHIELD_1WEEK(
         id = "shield_1week",
         titleEn = "1-Week Aegis Shield",
-        titleAr = "درع الحصانة الأسبوعي",
-        descriptionEn = "Legendary fortress: 7 full days of continuous breach absorption & streak protection.",
-        descriptionAr = "حصن أسطوري: 7 أيام كاملة من امتصاص التجاوزات وحماية السلسلة.",
+        titleAr = "درع الحصانة الأسبوعي (Aegis)",
+        descriptionEn = "Legendary fortress: 7 full days of continuous breach absorption, anti-demotion & streak protection.",
+        descriptionAr = "حصن دفاعي أسطوري: 7 أيام متواصلة من امتصاص التجاوزات وحماية السلسلة ومنع هبوط المستوى تحت أي ظرف.",
         iconEmoji = "🔰",
-        rarity = ItemRarity.EPIC
+        rarity = ItemRarity.EPIC,
+        howToObtainEn = "Hatched from the Dragon Egg (30-day streak), or rare milestone drop on Day 30+.",
+        howToObtainAr = "يُمنح عند فقس بيضة التنين الأسطورية (30 يوم تتابع متواصل)، أو كسحب نادر جداً في محطات السلسلة المتقدمة."
     ),
     MYSTERY_BOX(
         id = "mystery_box",
         titleEn = "Mystery Cyber Box",
         titleAr = "صندوق السايبر الغامض",
-        descriptionEn = "Contains a randomized high-value reward from the neural vault.",
-        descriptionAr = "يحتوي على مكافأة عشوائية قيمة من الخزينة العصبية.",
+        descriptionEn = "Contains randomized high-value loot: Potions, Shields, Skip Keys, or the elusive Legendary Potion.",
+        descriptionAr = "يحتوي على غنائم عشوائية قيّمة ونادرة: جرعات شفاء، دروع حصانة، مفاتيح تخطي، أو الجرعة الأسطورية النادرة.",
         iconEmoji = "🎁",
-        rarity = ItemRarity.COMMON
+        rarity = ItemRarity.COMMON,
+        howToObtainEn = "Crafted in the Exchange Lab for 15,000 XP, or awarded from 5-day streak milestones.",
+        howToObtainAr = "يتم استخراجه في مختبر التبادل باستبدال 15,000 XP، أو الحصول عليه من مكافآت تتابع الـ 5 أيام."
     );
 
     companion object {

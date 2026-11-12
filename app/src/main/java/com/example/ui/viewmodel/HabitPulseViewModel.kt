@@ -34,8 +34,8 @@ data class HabitPulseUiState(
     val rankTitle: String = "Active Mind",
     val rankBadge: String = "🌱",
     val flameScore: Int = 100,
-    val streakDays: Int = 5,
-    val brainRotPercentage: Float = 15f,
+    val streakDays: Int = 0,
+    val brainRotPercentage: Float = 0f,
     val isHealingActive: Boolean = false,
     val isGlitchingActive: Boolean = false,
     val currentLevel: Int = 1,
@@ -46,7 +46,7 @@ data class HabitPulseUiState(
     val activeImmunityUntilMillis: Long = 0L,
     val isImmunityActive: Boolean = false,
     val immunityRemainingHours: Int = 0,
-    val shieldCount: Int = 1, // legacy/quick-access shields count
+    val shieldCount: Int = 0, // start fresh with 0 shields
 
     // Inventory System (Keys, Potions, Shields, Mystery Box)
     val inventory: Map<InventoryItemType, Int> = emptyMap(),
@@ -999,22 +999,31 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * Resets the entire brain level back to Level 1 (0 XP) and resets thresholds/pools accordingly.
+     * Resets the entire brain level, rewards, inventory items, eggs, and streaks back to initial clean state.
      */
     fun resetBrainLevel() {
-        repository.setTotalXp(0L)
-        repository.setBrainRotPercentage(10f)
-        repository.setDailyBreachesCount(0)
+        val wasArabic = _uiState.value.isArabic
+        val wasDark = _uiState.value.isDarkMode
+        val theme = _uiState.value.selectedTheme
+
+        repository.clearAllUserData()
+        repository.setArabic(wasArabic)
+        repository.setDarkMode(wasDark)
+        repository.setSelectedTheme(theme)
         repository.setFlameScore(100)
         repository.setStreakDays(0)
+        repository.setTotalXp(0L)
+        repository.setBrainRotPercentage(0f)
 
         val newLevel = 1
-        val isAr = _uiState.value.isArabic
+        val isAr = wasArabic
         val title = HabitPulseEngine.getRankTitle(newLevel, isAr)
         val badge = HabitPulseEngine.getRankBadgeEmoji(newLevel)
 
-        val currentThresholds = repository.getAppThresholds()
-        val adjusted = applyDynamicShrinkingLimits(currentThresholds, newLevel)
+        val resetThresholds = repository.getAppThresholds().map {
+            it.copy(currentMinutes = 0, currentLaunches = 0)
+        }
+        val adjusted = applyDynamicShrinkingLimits(resetThresholds, newLevel)
         repository.saveAppThresholds(adjusted)
 
         _uiState.update {
@@ -1026,14 +1035,19 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 levelProgress = 0f,
                 rankTitle = title,
                 rankBadge = badge,
-                brainRotPercentage = 10f,
+                brainRotPercentage = 0f,
                 dailyBreachesCount = 0,
                 flameScore = 100,
                 streakDays = 0,
+                shieldCount = 0,
+                inventory = emptyMap(),
+                eggStates = repository.getEggStates(),
                 dailyBufferPool = HabitPulseEngine.DAILY_BUFFER_POOL_SIZE,
                 thresholds = adjusted,
                 activeShieldEvent = null,
-                itemEventMessage = if (isAr) "تم تصفير المستوى وإعادة ضبط الدماغ إلى المستوى 1 بنجاح 🧠" else "Brain Level reset to Level 1 (0 XP) successfully 🧠"
+                isMilestoneRewardClaimable = false,
+                lastClaimedMilestoneStreak = 0,
+                itemEventMessage = if (isAr) "تم تصفير كافة المستويات والجوائز والتقدم بنجاح! لتبدأ اللعبة الحقيقية 🧠✨" else "All levels, rewards & items reset to Level 1 (0 XP) successfully! 🧠✨"
             )
         }
     }
