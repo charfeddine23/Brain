@@ -1291,6 +1291,12 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     // --- Auto-Update System (https://github.com/charfeddine23/Brain) ---
+    fun checkForUpdatesOnAppEnter() {
+        val state = _uiState.value
+        if (state.isCheckingUpdate || state.isDownloadingUpdate || state.needsInstallPermission) return
+        checkForUpdates(isManual = false)
+    }
+
     fun checkForUpdates(isManual: Boolean = false) {
         if (_uiState.value.isCheckingUpdate || _uiState.value.isDownloadingUpdate) return
 

@@ -141,12 +141,18 @@ class MainActivity : ComponentActivity() {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             val lifecycleOwner = LocalLifecycleOwner.current
 
-            // Check usage permission on resume (e.g. after returning from Settings)
+            // Check usage permission & pending installs on resume, and auto-check updates on every app entry
             DisposableEffect(lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
-                    if (event == Lifecycle.Event.ON_RESUME) {
-                        viewModel.checkPermission()
-                        viewModel.retryPendingInstallIfPermitted()
+                    when (event) {
+                        Lifecycle.Event.ON_START -> {
+                            viewModel.checkForUpdatesOnAppEnter()
+                        }
+                        Lifecycle.Event.ON_RESUME -> {
+                            viewModel.checkPermission()
+                            viewModel.retryPendingInstallIfPermitted()
+                        }
+                        else -> Unit
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)

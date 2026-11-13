@@ -53,6 +53,7 @@ class AppUpdaterManager(private val context: Context) {
                 .url(LATEST_RELEASE_API)
                 .header("Accept", "application/vnd.github+json")
                 .header("User-Agent", "BrainPulse-Android-Updater")
+                .header("Cache-Control", "no-cache")
                 .get()
                 .build()
 
