@@ -384,6 +384,104 @@ class HabitPulseRepository(context: Context) {
             .apply()
     }
 
+    @Synchronized
+    fun getWeeklyCleanSweepDays(): Int {
+        val week = getWeekKey()
+        return if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") == week) {
+            prefs.getInt(KEY_WEEKLY_CLEAN_SWEEP_DAYS, 0).coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+
+    @Synchronized
+    fun setWeeklyCleanSweepDays(days: Int) {
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, getWeekKey())
+            .putInt(KEY_WEEKLY_CLEAN_SWEEP_DAYS, days.coerceAtLeast(0))
+            .apply()
+    }
+
+    @Synchronized
+    fun getWeeklyPriorFocusMinutes(): Int {
+        val week = getWeekKey()
+        return if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") == week) {
+            prefs.getInt(KEY_WEEKLY_PRIOR_FOCUS_MINS, 0).coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+
+    @Synchronized
+    fun addWeeklyPriorFocusMinutes(minutes: Int) {
+        if (minutes <= 0) return
+        val current = getWeeklyPriorFocusMinutes()
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, getWeekKey())
+            .putInt(KEY_WEEKLY_PRIOR_FOCUS_MINS, current + minutes)
+            .apply()
+    }
+
+    @Synchronized
+    fun getDailyQuestUnlockTimes(): Map<String, Long> {
+        val today = getTodayKey()
+        if (prefs.getString(KEY_DAILY_QUESTS_DATE, "") != today) return emptyMap()
+        return parseUnlockTimesJson(prefs.getString(KEY_DAILY_QUESTS_UNLOCKS, null))
+    }
+
+    @Synchronized
+    fun setDailyQuestUnlockTime(questId: String, unlockAtMillis: Long) {
+        val today = getTodayKey()
+        val current = getDailyQuestUnlockTimes().toMutableMap()
+        current[questId] = unlockAtMillis
+        prefs.edit()
+            .putString(KEY_DAILY_QUESTS_DATE, today)
+            .putString(KEY_DAILY_QUESTS_UNLOCKS, serializeUnlockTimesJson(current))
+            .apply()
+    }
+
+    @Synchronized
+    fun getWeeklyQuestUnlockTimes(): Map<String, Long> {
+        val week = getWeekKey()
+        if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") != week) return emptyMap()
+        return parseUnlockTimesJson(prefs.getString(KEY_WEEKLY_QUESTS_UNLOCKS, null))
+    }
+
+    @Synchronized
+    fun setWeeklyQuestUnlockTime(questId: String, unlockAtMillis: Long) {
+        val week = getWeekKey()
+        val current = getWeeklyQuestUnlockTimes().toMutableMap()
+        current[questId] = unlockAtMillis
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, week)
+            .putString(KEY_WEEKLY_QUESTS_UNLOCKS, serializeUnlockTimesJson(current))
+            .apply()
+    }
+
+    private fun parseUnlockTimesJson(raw: String?): Map<String, Long> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        val map = mutableMapOf<String, Long>()
+        try {
+            val obj = JSONObject(raw)
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                map[key] = obj.optLong(key, 0L)
+            }
+        } catch (_: Exception) {
+            return emptyMap()
+        }
+        return map
+    }
+
+    private fun serializeUnlockTimesJson(map: Map<String, Long>): String {
+        val obj = JSONObject()
+        for ((k, v) in map) {
+            obj.put(k, v)
+        }
+        return obj.toString()
+    }
+
     // --- Tutorial ---
     fun hasCompletedTutorial(): Boolean = prefs.getBoolean(KEY_HAS_COMPLETED_TUTORIAL, false)
     fun setTutorialCompleted(completed: Boolean) =
@@ -419,6 +517,10 @@ class HabitPulseRepository(context: Context) {
         private const val KEY_WEEKLY_QUESTS_DONE = "weekly_quests_done"
         private const val KEY_WEEKLY_CLEAN_SOCIAL_DAYS = "weekly_clean_social_days"
         private const val KEY_WEEKLY_NO_DEMOTION_DAYS = "weekly_no_demotion_days"
+        private const val KEY_WEEKLY_CLEAN_SWEEP_DAYS = "weekly_clean_sweep_days"
+        private const val KEY_WEEKLY_PRIOR_FOCUS_MINS = "weekly_prior_focus_mins"
+        private const val KEY_DAILY_QUESTS_UNLOCKS = "daily_quests_unlocks"
+        private const val KEY_WEEKLY_QUESTS_UNLOCKS = "weekly_quests_unlocks"
         private const val KEY_LAST_ACTIVE_DATE = "last_active_date"
     }
 }

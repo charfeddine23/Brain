@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.AppCategory
+import com.example.model.HabitPulseEngine
 import com.example.model.InventoryItemType
 import com.example.model.QuestItem
 import com.example.model.ShieldEvent
@@ -70,6 +72,7 @@ import com.example.ui.components.DynamicBrainCanvas
 import com.example.ui.components.FireParticleContainer
 import com.example.ui.components.GlowingRewardsNavChip
 import com.example.ui.components.LiquidGlassCard
+import com.example.ui.components.QuestCodexDialog
 import com.example.ui.components.StreakGuideDialog
 import com.example.ui.theme.LocalGlassColors
 import com.example.ui.viewmodel.HabitPulseUiState
@@ -87,6 +90,7 @@ fun HabitPulseDashboardScreen(
     val scrollState = rememberScrollState()
 
     var showStreakGuideDialog by remember { mutableStateOf(false) }
+    var showQuestCodexDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -760,19 +764,69 @@ fun HabitPulseDashboardScreen(
         }
 
         // --- 7. Daily & Weekly Quests Section ---
+        val totalAllQuestsCount = uiState.allDailyQuests.size + uiState.allWeeklyQuests.size
+        val completedAllQuestsCount = uiState.allDailyQuests.count { it.isCompleted } + uiState.allWeeklyQuests.count { it.isCompleted }
+
         LiquidGlassCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isArabic) "المهمات اليومية والأسبوعية" else "Daily & Weekly Quests",
-                    fontWeight = FontWeight.Bold,
-                    color = glassColors.onSurfaceColor,
-                    fontSize = 15.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isArabic) "المهمات اليومية والأسبوعية" else "Daily & Weekly Quests",
+                            fontWeight = FontWeight.Bold,
+                            color = glassColors.onSurfaceColor,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = if (isArabic) "المنجز: $completedAllQuestsCount / $totalAllQuestsCount • استبدال تلقائي"
+                                   else "Cleared: $completedAllQuestsCount / $totalAllQuestsCount • Auto-Rotation",
+                            fontSize = 10.5.sp,
+                            color = glassColors.onSurfaceVariantColor
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    // RPG Quest Codex Button showing all pending vs completed quests
+                    Surface(
+                        onClick = { showQuestCodexDialog = true },
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF0F172A),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.2.dp,
+                            Brush.horizontalGradient(listOf(Color(0xFF38BDF8), Color(0xFFA855F7)))
+                        ),
+                        modifier = Modifier
+                            .height(38.dp)
+                            .testTag("open_quest_codex_btn")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = if (isArabic) "عرض كل المهام" else "View All Quests",
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isArabic) "كل المهام" else "All Quests",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = if (isArabic) "المهمات اليومية (تمنح بيضة يومية)" else "Daily Quests (Awards Daily Egg)",
@@ -783,14 +837,24 @@ fun HabitPulseDashboardScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                uiState.dailyQuests.forEach { quest ->
-                    QuestRow(
-                        quest = quest,
-                        isArabic = isArabic,
-                        hasSkipKey = (uiState.inventory[InventoryItemType.DAILY_QUEST_SKIP_KEY] ?: 0) > 0,
-                        onUseSkipKey = { viewModel.skipQuestWithKey(quest.id, isWeekly = false) }
+                if (uiState.dailyQuests.isEmpty()) {
+                    QuestPoolClearedBanner(
+                        title = if (isArabic) "تم إنجاز كافة المهام اليومية بنجاح!" else "All Daily Quests Cleared!",
+                        subtitle = if (isArabic) "تجدد الدورة اليومية بعد ${HabitPulseEngine.formatCountdown(millisUntilNextMidnight(uiState.currentTimeMillis))}"
+                                   else "Next daily rotation in ${HabitPulseEngine.formatCountdown(millisUntilNextMidnight(uiState.currentTimeMillis))}",
+                        accent = Color(0xFF10B981)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                } else {
+                    uiState.dailyQuests.forEach { quest ->
+                        QuestRow(
+                            quest = quest,
+                            currentTimeMillis = uiState.currentTimeMillis,
+                            isArabic = isArabic,
+                            hasSkipKey = (uiState.inventory[InventoryItemType.DAILY_QUEST_SKIP_KEY] ?: 0) > 0,
+                            onUseSkipKey = { viewModel.skipQuestWithKey(quest.id, isWeekly = false) }
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -804,14 +868,24 @@ fun HabitPulseDashboardScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                uiState.weeklyQuests.forEach { quest ->
-                    QuestRow(
-                        quest = quest,
-                        isArabic = isArabic,
-                        hasSkipKey = (uiState.inventory[InventoryItemType.WEEKLY_QUEST_SKIP_KEY] ?: 0) > 0,
-                        onUseSkipKey = { viewModel.skipQuestWithKey(quest.id, isWeekly = true) }
+                if (uiState.weeklyQuests.isEmpty()) {
+                    QuestPoolClearedBanner(
+                        title = if (isArabic) "تم إنجاز كافة المهام الأسبوعية الأسطورية!" else "All Weekly Quests Cleared!",
+                        subtitle = if (isArabic) "بداية أسبوع جديد خلال ${HabitPulseEngine.formatCountdown(millisUntilNextWeek(uiState.currentTimeMillis))}"
+                                   else "Next weekly cycle in ${HabitPulseEngine.formatCountdown(millisUntilNextWeek(uiState.currentTimeMillis))}",
+                        accent = Color(0xFFA855F7)
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                } else {
+                    uiState.weeklyQuests.forEach { quest ->
+                        QuestRow(
+                            quest = quest,
+                            currentTimeMillis = uiState.currentTimeMillis,
+                            isArabic = isArabic,
+                            hasSkipKey = (uiState.inventory[InventoryItemType.WEEKLY_QUEST_SKIP_KEY] ?: 0) > 0,
+                            onUseSkipKey = { viewModel.skipQuestWithKey(quest.id, isWeekly = true) }
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                 }
             }
         }
@@ -827,6 +901,21 @@ fun HabitPulseDashboardScreen(
             isShieldActive = uiState.isImmunityActive,
             isArabic = isArabic,
             onDismiss = { showStreakGuideDialog = false }
+        )
+    }
+
+    if (showQuestCodexDialog) {
+        QuestCodexDialog(
+            allDailyQuests = uiState.allDailyQuests,
+            allWeeklyQuests = uiState.allWeeklyQuests,
+            activeDailyIds = uiState.dailyQuests.map { it.id }.toSet(),
+            activeWeeklyIds = uiState.weeklyQuests.map { it.id }.toSet(),
+            currentTimeMillis = uiState.currentTimeMillis,
+            hasDailySkipKey = (uiState.inventory[InventoryItemType.DAILY_QUEST_SKIP_KEY] ?: 0) > 0,
+            hasWeeklySkipKey = (uiState.inventory[InventoryItemType.WEEKLY_QUEST_SKIP_KEY] ?: 0) > 0,
+            isArabic = isArabic,
+            onSkipQuestWithKey = { questId, isWeekly -> viewModel.skipQuestWithKey(questId, isWeekly) },
+            onDismiss = { showQuestCodexDialog = false }
         )
     }
 }
@@ -920,19 +1009,95 @@ fun ShrinkCategoryRow(
 }
 
 @Composable
+private fun QuestPoolClearedBanner(
+    title: String,
+    subtitle: String,
+    accent: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = accent.copy(alpha = 0.12f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.45f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.HourglassTop,
+                contentDescription = null,
+                tint = accent,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = subtitle,
+                    color = accent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+private fun millisUntilNextMidnight(nowMillis: Long): Long {
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = nowMillis
+    cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+    return (cal.timeInMillis - nowMillis).coerceAtLeast(0L)
+}
+
+private fun millisUntilNextWeek(nowMillis: Long): Long {
+    val cal = java.util.Calendar.getInstance()
+    cal.timeInMillis = nowMillis
+    cal.add(java.util.Calendar.WEEK_OF_YEAR, 1)
+    cal.set(java.util.Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+    cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    cal.set(java.util.Calendar.MINUTE, 0)
+    cal.set(java.util.Calendar.SECOND, 0)
+    cal.set(java.util.Calendar.MILLISECOND, 0)
+    return (cal.timeInMillis - nowMillis).coerceAtLeast(0L)
+}
+
+@Composable
 fun QuestRow(
     quest: QuestItem,
+    currentTimeMillis: Long,
     isArabic: Boolean,
     hasSkipKey: Boolean,
     onUseSkipKey: () -> Unit
 ) {
+    val isLockedCooldown = quest.isLocked(currentTimeMillis)
+    val cooldownMillis = quest.remainingCooldownMillis(currentTimeMillis)
+
+    val cardBg = when {
+        quest.isCompleted -> Color(0x1A10B981)
+        isLockedCooldown -> Color(0x1AF59E0B)
+        else -> Color(0xFF1E293B).copy(alpha = 0.6f)
+    }
+    val cardBorder = when {
+        quest.isCompleted -> Color(0xFF10B981).copy(alpha = 0.6f)
+        isLockedCooldown -> Color(0xFFF59E0B).copy(alpha = 0.55f)
+        else -> Color(0xFF334155)
+    }
+
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (quest.isCompleted) Color(0x1A10B981) else Color(0xFF1E293B).copy(alpha = 0.6f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (quest.isCompleted) Color(0xFF10B981).copy(alpha = 0.6f) else Color(0xFF334155)
-        ),
+        color = cardBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("quest_row_${quest.id}")
@@ -947,15 +1112,30 @@ fun QuestRow(
                     .size(28.dp)
                     .clip(CircleShape)
                     .background(
-                        if (quest.isCompleted) Color(0xFF10B981).copy(alpha = 0.2f)
-                        else Color.White.copy(alpha = 0.05f)
+                        when {
+                            quest.isCompleted -> Color(0xFF10B981).copy(alpha = 0.2f)
+                            isLockedCooldown -> Color(0xFFF59E0B).copy(alpha = 0.2f)
+                            else -> Color.White.copy(alpha = 0.05f)
+                        }
                     )
             ) {
                 Icon(
-                    imageVector = if (quest.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                    contentDescription = if (quest.isCompleted) "Completed" else "Incomplete",
-                    tint = if (quest.isCompleted) Color(0xFF10B981) else Color(0xFF94A3B8),
-                    modifier = Modifier.size(20.dp)
+                    imageVector = when {
+                        quest.isCompleted -> Icons.Default.CheckCircle
+                        isLockedCooldown -> Icons.Default.HourglassTop
+                        else -> Icons.Default.RadioButtonUnchecked
+                    },
+                    contentDescription = when {
+                        quest.isCompleted -> "Completed"
+                        isLockedCooldown -> "Queued Cooldown"
+                        else -> "Incomplete"
+                    },
+                    tint = when {
+                        quest.isCompleted -> Color(0xFF10B981)
+                        isLockedCooldown -> Color(0xFFF59E0B)
+                        else -> Color(0xFF94A3B8)
+                    },
+                    modifier = Modifier.size(19.dp)
                 )
             }
 
@@ -967,10 +1147,28 @@ fun QuestRow(
                         text = if (isArabic) quest.titleAr else quest.titleEn,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (quest.isCompleted) Color(0xFF34D399) else Color.White
+                        color = when {
+                            quest.isCompleted -> Color(0xFF34D399)
+                            isLockedCooldown -> Color(0xFFFDE68A)
+                            else -> Color.White
+                        }
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    if (quest.isCompleted) {
+                    if (isLockedCooldown) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFF59E0B).copy(alpha = 0.22f)
+                        ) {
+                            Text(
+                                text = if (isArabic) "تبدأ خلال ${HabitPulseEngine.formatCountdown(cooldownMillis)}"
+                                       else "Starts ${HabitPulseEngine.formatCountdown(cooldownMillis)}",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFFBBF24),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (quest.isCompleted) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = Color(0xFF10B981).copy(alpha = 0.2f)
@@ -1002,9 +1200,9 @@ fun QuestRow(
                 Text(
                     text = if (isArabic) quest.descriptionAr else quest.descriptionEn,
                     fontSize = 11.sp,
-                    color = if (quest.isCompleted) Color(0xFF94A3B8) else Color(0xFFCBD5E1)
+                    color = if (isLockedCooldown) Color(0xFF94A3B8) else Color(0xFFCBD5E1)
                 )
-                if (!quest.isCompleted && quest.targetProgress > 1) {
+                if (!quest.isCompleted && !isLockedCooldown && quest.targetProgress > 1) {
                     Spacer(modifier = Modifier.height(6.dp))
                     LinearProgressIndicator(
                         progress = { quest.progressPercent },
@@ -1020,6 +1218,8 @@ fun QuestRow(
                 Text(
                     text = when {
                         quest.isCompleted -> if (isArabic) "تم استلام +${quest.xpReward} XP بنجاح" else "+${quest.xpReward} XP Claimed"
+                        isLockedCooldown -> if (isArabic) "⏳ مهمة بديلة قيد التجهيز • متبقي ${HabitPulseEngine.formatCountdown(cooldownMillis)} للبدء"
+                                            else "⏳ Replacement quest spawning • ${HabitPulseEngine.formatCountdown(cooldownMillis)} left to start"
                         hasSkipKey -> if (isArabic) "يُحتسب تلقائياً عند التنفيذ • متاح التخطي بالمفتاح (+${quest.xpReward} XP)"
                                       else "Auto-tracks on completion • Skip Key available (+${quest.xpReward} XP)"
                         else -> if (isArabic) "يُحتسب تلقائياً عند تطبيق الشرط (+${quest.xpReward} XP)"
@@ -1027,11 +1227,15 @@ fun QuestRow(
                     },
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (quest.isCompleted) Color(0xFF10B981) else Color(0xFF38BDF8)
+                    color = when {
+                        quest.isCompleted -> Color(0xFF10B981)
+                        isLockedCooldown -> Color(0xFFF59E0B)
+                        else -> Color(0xFF38BDF8)
+                    }
                 )
             }
 
-            if (!quest.isCompleted && hasSkipKey) {
+            if (!quest.isCompleted && !isLockedCooldown && hasSkipKey) {
                 IconButton(
                     onClick = onUseSkipKey,
                     modifier = Modifier

@@ -122,10 +122,15 @@ data class QuestItem(
     val targetProgress: Int,
     val isCompleted: Boolean = false,
     val isWeekly: Boolean = false,
-    val xpReward: Long = 5_000L
+    val xpReward: Long = 5_000L,
+    val unlockAtMillis: Long = 0L
 ) {
     val progressPercent: Float
         get() = if (targetProgress <= 0) 1f else (currentProgress.toFloat() / targetProgress).coerceIn(0f, 1f)
+
+    fun isLocked(nowMillis: Long): Boolean = !isCompleted && unlockAtMillis > nowMillis
+
+    fun remainingCooldownMillis(nowMillis: Long): Long = (unlockAtMillis - nowMillis).coerceAtLeast(0L)
 }
 
 /**
@@ -177,6 +182,21 @@ object HabitPulseEngine {
     const val MAX_POINTS = (MAX_LEVEL - 1) * POINTS_PER_LEVEL // 99,000 pts for level 100
     const val DAILY_BUFFER_POOL_SIZE = 1000
     const val PENALTY_PER_10_MIN_BLOCK = 50
+    const val ACTIVE_QUEST_SLOTS = 3
+    const val DAILY_REPLACEMENT_COOLDOWN_MS = 5 * 60 * 1000L   // 5 minutes until replacement Daily quest starts
+    const val WEEKLY_REPLACEMENT_COOLDOWN_MS = 15 * 60 * 1000L // 15 minutes until replacement Weekly quest starts
+
+    fun formatCountdown(millisRemaining: Long): String {
+        val totalSeconds = ((millisRemaining.coerceAtLeast(0L) + 999L) / 1000L)
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format(java.util.Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(java.util.Locale.US, "%02d:%02d", minutes, seconds)
+        }
+    }
 
     /**
      * Points Pool Math:
@@ -412,18 +432,9 @@ object HabitPulseEngine {
     fun generateDailyQuests(level: Int): List<QuestItem> {
         val targetSocialMins = calculateDynamicTimeLimit(AppCategory.SOCIAL_MEDIA, level)
         val targetFocusMins = if (level < 30) 25 else 45
+        val eliteFocusMins = targetFocusMins + 25
 
         return listOf(
-            QuestItem(
-                id = "daily_social_limit",
-                titleEn = "Tame the Dopamine Loop",
-                titleAr = "كبح حلقة الدوبامين",
-                descriptionEn = "Keep total social media usage below $targetSocialMins minutes today.",
-                descriptionAr = "حافظ على استخدام وسائل التواصل أقل من $targetSocialMins دقيقة اليوم.",
-                currentProgress = 0,
-                targetProgress = 1,
-                xpReward = 800L
-            ),
             QuestItem(
                 id = "daily_deep_work",
                 titleEn = "Deep Neural Focus",
@@ -435,19 +446,60 @@ object HabitPulseEngine {
                 xpReward = 1000L
             ),
             QuestItem(
+                id = "daily_social_limit",
+                titleEn = "Tame the Dopamine Loop",
+                titleAr = "كبح حلقة الدوبامين",
+                descriptionEn = "Finish today with Social Media usage below $targetSocialMins minutes.",
+                descriptionAr = "أنهِ اليوم باستخدام وسائل التواصل أقل من $targetSocialMins دقيقة.",
+                currentProgress = 0,
+                targetProgress = 1,
+                xpReward = 800L
+            ),
+            QuestItem(
                 id = "daily_zero_breaches",
                 titleEn = "Flawless Iron Will",
                 titleAr = "إرادة حديدية لا تنكسر",
-                descriptionEn = "Complete the day with zero time breaches (Case A: Clean Sweep).",
-                descriptionAr = "أكمل اليوم دون أي تجاوز لحدود الوقت المحددة (الحالة أ: فوز ناصع).",
+                descriptionEn = "Complete the day with zero time breaches (Clean Sweep).",
+                descriptionAr = "أكمل اليوم دون أي تجاوز لحدود الوقت المحددة (فوز ناصع).",
                 currentProgress = 0,
                 targetProgress = 1,
                 xpReward = 1200L
+            ),
+            QuestItem(
+                id = "daily_mindful_browse",
+                titleEn = "Mindful Focus Sprint",
+                titleAr = "انطلاقة التركيز الواعي",
+                descriptionEn = "Log 10 productive minutes while keeping today's breaches at 0.",
+                descriptionAr = "حقق 10 دقائق في تطبيقات الإنتاجية مع الحفاظ على 0 تجاوزات اليوم.",
+                currentProgress = 0,
+                targetProgress = 10,
+                xpReward = 650L
+            ),
+            QuestItem(
+                id = "daily_elite_focus",
+                titleEn = "Mastermind Marathon",
+                titleAr = "ماراثون العقل الفائق",
+                descriptionEn = "Accumulate $eliteFocusMins minutes in productive & utility tools today.",
+                descriptionAr = "اجمع $eliteFocusMins دقيقة عمل مثمر في تطبيقات الإنتاجية اليوم.",
+                currentProgress = 0,
+                targetProgress = eliteFocusMins,
+                xpReward = 1500L
+            ),
+            QuestItem(
+                id = "daily_buffer_guardian",
+                titleEn = "Buffer Pool Guardian",
+                titleAr = "حارس مخزن الأمان",
+                descriptionEn = "Finish the day with at least 800 / 1000 pts in your Safety Buffer.",
+                descriptionAr = "أنهِ اليوم وفي مخزن الأمان الوقائي 800 نقطة على الأقل من 1000.",
+                currentProgress = 0,
+                targetProgress = 1,
+                xpReward = 950L
             )
         )
     }
 
     fun generateWeeklyQuests(level: Int): List<QuestItem> {
+        val weeklyFocusGoal = if (level < 30) 120 else 180
         return listOf(
             QuestItem(
                 id = "weekly_5day_streak",
@@ -481,6 +533,39 @@ object HabitPulseEngine {
                 targetProgress = 7,
                 isWeekly = true,
                 xpReward = 4000L
+            ),
+            QuestItem(
+                id = "weekly_deep_work_titan",
+                titleEn = "Weekly Focus Titan",
+                titleAr = "عملاق التركيز الأسبوعي",
+                descriptionEn = "Accumulate $weeklyFocusGoal total minutes in productive apps this week.",
+                descriptionAr = "اجمع $weeklyFocusGoal دقيقة في تطبيقات الإنتاجية هذا الأسبوع.",
+                currentProgress = 0,
+                targetProgress = weeklyFocusGoal,
+                isWeekly = true,
+                xpReward = 3000L
+            ),
+            QuestItem(
+                id = "weekly_clean_sweep_3",
+                titleEn = "Triple Clean Sweep",
+                titleAr = "ثلاثية الفوز الناصع",
+                descriptionEn = "Achieve 3 perfect Clean Sweep days (0 total breaches) this week.",
+                descriptionAr = "حقق 3 أيام من الفوز الناصع (0 تجاوزات تماماً) خلال هذا الأسبوع.",
+                currentProgress = 0,
+                targetProgress = 3,
+                isWeekly = true,
+                xpReward = 3800L
+            ),
+            QuestItem(
+                id = "weekly_10day_legend",
+                titleEn = "Streak Legend",
+                titleAr = "أسطورة الاستمرارية",
+                descriptionEn = "Reach a 10-day unbroken discipline streak.",
+                descriptionAr = "صل إلى سلسلة التزام متواصلة لمدة 10 أيام دون انكسار.",
+                currentProgress = 0,
+                targetProgress = 10,
+                isWeekly = true,
+                xpReward = 5000L
             )
         )
     }
