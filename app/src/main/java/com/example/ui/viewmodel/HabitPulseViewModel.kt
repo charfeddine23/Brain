@@ -1866,4 +1866,37 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     fun getReleasesBrowserIntent(): Intent = updaterManager.createReleasesBrowserIntent(
         _uiState.value.availableUpdate?.htmlUrl ?: AppUpdaterManager.RELEASES_LATEST_URL
     )
+
+    fun syncXpFromRepository() {
+        val syncedXp = repository.getTotalXp()
+        val totalPts = syncedXp.toInt()
+        val newLevel = HabitPulseEngine.calculateLevelFromPoints(totalPts)
+        val ptsInLevel = if (newLevel >= HabitPulseEngine.MAX_LEVEL) HabitPulseEngine.POINTS_PER_LEVEL else totalPts % HabitPulseEngine.POINTS_PER_LEVEL
+        val prog = HabitPulseEngine.calculateLevelProgress(totalPts)
+        val title = HabitPulseEngine.getRankTitle(newLevel, _uiState.value.isArabic)
+        val badge = HabitPulseEngine.getRankBadgeEmoji(newLevel)
+
+        _uiState.update {
+            val adjustedThresholds = if (newLevel != it.brainLevel) {
+                applyDynamicShrinkingLimits(it.thresholds, newLevel).also { list ->
+                    repository.saveAppThresholds(list)
+                }
+            } else {
+                it.thresholds
+            }
+            it.copy(
+                brainLevel = newLevel,
+                currentLevel = newLevel,
+                totalXp = syncedXp,
+                totalPoints = totalPts,
+                pointsInCurrentLevel = ptsInLevel,
+                levelProgress = prog,
+                rankTitle = title,
+                rankBadge = badge,
+                levelTitle = title,
+                levelBadge = badge,
+                thresholds = adjustedThresholds
+            )
+        }
+    }
 }

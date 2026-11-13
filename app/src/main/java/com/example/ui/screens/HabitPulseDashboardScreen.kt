@@ -83,7 +83,8 @@ fun HabitPulseDashboardScreen(
     uiState: HabitPulseUiState,
     viewModel: HabitPulseViewModel,
     onNavigateToLimits: () -> Unit = {},
-    onNavigateToRewards: () -> Unit = {}
+    onNavigateToRewards: () -> Unit = {},
+    onNavigateToQuests: () -> Unit = {}
 ) {
     val glassColors = LocalGlassColors.current
     val isArabic = uiState.isArabic
@@ -792,36 +793,69 @@ fun HabitPulseDashboardScreen(
                         )
                     }
 
-                    // RPG Quest Codex Button showing all pending vs completed quests
-                    Surface(
-                        onClick = { showQuestCodexDialog = true },
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFF0F172A),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.2.dp,
-                            Brush.horizontalGradient(listOf(Color(0xFF38BDF8), Color(0xFFA855F7)))
-                        ),
-                        modifier = Modifier
-                            .height(38.dp)
-                            .testTag("open_quest_codex_btn")
+                    // Action buttons: 300 Quests Hub + Codex
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            onClick = onNavigateToQuests,
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF0A1628),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                Brush.horizontalGradient(listOf(Color(0xFF10B981), Color(0xFF38BDF8)))
+                            ),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("open_300_quests_screen_btn")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.EmojiEvents,
-                                contentDescription = if (isArabic) "عرض كل المهام" else "View All Quests",
-                                tint = Color(0xFFF59E0B),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isArabic) "كل المهام" else "All Quests",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("⚡", fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isArabic) "300 مهمة" else "300 Hub",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF38BDF8)
+                                )
+                            }
+                        }
+
+                        // RPG Quest Codex Button showing all pending vs completed quests
+                        Surface(
+                            onClick = { showQuestCodexDialog = true },
+                            shape = RoundedCornerShape(14.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                Brush.horizontalGradient(listOf(Color(0xFF38BDF8), Color(0xFFA855F7)))
+                            ),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .testTag("open_quest_codex_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EmojiEvents,
+                                    contentDescription = if (isArabic) "عرض كل المهام" else "View All Quests",
+                                    tint = Color(0xFFF59E0B),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = if (isArabic) "كل المهام" else "All Quests",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }

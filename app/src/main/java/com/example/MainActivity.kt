@@ -73,6 +73,7 @@ import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.EggRewardsScreen
 import com.example.ui.screens.HabitPulseDashboardScreen
 import com.example.ui.screens.InventoryScreen
+import com.example.ui.screens.QuestsScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.HabitPulseTheme
 import com.example.ui.theme.LocalGlassColors
@@ -119,6 +120,13 @@ enum class NavigationTab(
         activeIcon = Icons.Filled.AutoAwesome,
         inactiveIcon = Icons.Outlined.AutoAwesome,
         testTag = "nav_tab_rewards"
+    ),
+    QUESTS(
+        titleEn = "Quests",
+        titleAr = "المهام",
+        activeIcon = Icons.Filled.AutoAwesome,
+        inactiveIcon = Icons.Outlined.AutoAwesome,
+        testTag = "nav_tab_quests"
     ),
     SETTINGS(
         titleEn = "Settings",
@@ -221,7 +229,8 @@ fun HabitPulseApp(
                         uiState = uiState,
                         viewModel = viewModel,
                         onNavigateToLimits = { currentTab = NavigationTab.LIMITS },
-                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS }
+                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS },
+                        onNavigateToQuests = { currentTab = NavigationTab.QUESTS }
                     )
                     NavigationTab.INVENTORY -> InventoryScreen(
                         uiState = uiState,
@@ -239,6 +248,11 @@ fun HabitPulseApp(
                         uiState = uiState,
                         viewModel = viewModel,
                         onNavigateBack = { currentTab = NavigationTab.DASHBOARD }
+                    )
+                    NavigationTab.QUESTS -> QuestsScreen(
+                        isArabic = uiState.isArabic,
+                        onNavigateBack = { currentTab = NavigationTab.DASHBOARD },
+                        onXpSynced = { viewModel.syncXpFromRepository() }
                     )
                     NavigationTab.SETTINGS -> SettingsScreen(
                         uiState = uiState,
@@ -306,7 +320,7 @@ fun LiquidGlassBottomBar(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavigationTab.entries.filter { it != NavigationTab.REWARDS }.forEach { tab ->
+            NavigationTab.entries.filter { it != NavigationTab.REWARDS && it != NavigationTab.QUESTS }.forEach { tab ->
                 val isSelected = currentTab == tab
                 val title = if (isArabic) tab.titleAr else tab.titleEn
 
