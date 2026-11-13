@@ -1,11 +1,19 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,22 +33,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
@@ -57,10 +58,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.InventoryItemType
-import com.example.model.ItemRarity
-import com.example.ui.components.LiquidGlassCard
+import com.example.ui.components.CraftedRewardFeedback
+import com.example.ui.components.CraftingCelebrationDialog
+import com.example.ui.components.FusionBlueprintCard
+import com.example.ui.components.GameInventoryItemTile
+import com.example.ui.components.ItemExplainerDialog
+import com.example.ui.components.VaultShieldStatusHud
 import com.example.ui.theme.LocalGlassColors
-import com.example.ui.theme.ShieldCyan
 import com.example.ui.viewmodel.HabitPulseUiState
 import com.example.ui.viewmodel.HabitPulseViewModel
 
@@ -69,7 +73,7 @@ enum class InventoryCategoryFilter(val titleEn: String, val titleAr: String, val
     SHIELDS("Shields", "الدروع", "🛡️"),
     POTIONS("Potions", "العقاقير", "🧪"),
     KEYS("Skip Keys", "المفاتيح", "🗝️"),
-    BOXES("Mystery Boxes", "الصناديق", "🎁")
+    BOXES("Boxes", "الصناديق", "🎁")
 }
 
 @Composable
@@ -80,9 +84,9 @@ fun InventoryScreen(
     val glassColors = LocalGlassColors.current
     val isArabic = uiState.isArabic
 
-    // State for info dialog
     var itemExplaining by remember { mutableStateOf<InventoryItemType?>(null) }
     var selectedCategory by remember { mutableStateOf(InventoryCategoryFilter.ALL) }
+    var craftedFeedback by remember { mutableStateOf<CraftedRewardFeedback?>(null) }
 
     val filteredItems = remember(selectedCategory) {
         when (selectedCategory) {
@@ -105,94 +109,145 @@ fun InventoryScreen(
         }
     }
 
+    val chunkedItems = remember(filteredItems) { filteredItems.chunked(2) }
     val totalItemsCount = uiState.inventory.values.sum()
+
+    // Subtle animated aura for the Fusion Lab header
+    val labTransition = rememberInfiniteTransition(label = "fusion_lab_aura")
+    val labBorderAlpha by labTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "lab_border_alpha"
+    )
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = dimensionResource(R.dimen.screen_padding), vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // --- 1. Inventory Header ---
+        // --- 1. Modern RPG Vault Header HUD ---
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF38BDF8).copy(alpha = 0.2f))
-                            .border(1.dp, Color(0xFF38BDF8), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Inventory2,
-                            contentDescription = null,
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(24.dp)
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = Color(0xFF0E1526).copy(alpha = 0.9f),
+                border = BorderStroke(
+                    1.dp,
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFF38BDF8).copy(alpha = 0.55f),
+                            Color(0xFFA855F7).copy(alpha = 0.45f)
                         )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = if (isArabic) "المستودع والخزينة العصبية" else "Neural Inventory & Vault",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = glassColors.onSurfaceColor
-                        )
-                        Text(
-                            text = if (isArabic) "جميع العقاقير والمفاتيح والدروع ومختبر الدمج" else "Potions, Skip Keys, Shields & Fusion Lab",
-                            fontSize = 12.sp,
-                            color = glassColors.onSurfaceVariantColor
-                        )
-                    }
-                }
-
-                // Balance of Total Items & XP
-                Column(horizontalAlignment = Alignment.End) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = glassColors.accentColor.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, glassColors.accentColor.copy(alpha = 0.5f))
-                    ) {
-                        Text(
-                            text = "$totalItemsCount ${if (isArabic) "عناصر" else "Items"}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = glassColors.accentColor,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${uiState.totalXp} XP",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF94A3B8)
                     )
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFF38BDF8).copy(alpha = 0.14f),
+                                    Color(0xFFA855F7).copy(alpha = 0.10f)
+                                )
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(15.dp))
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(Color(0xFF38BDF8).copy(alpha = 0.35f), Color(0xFF0B1222))
+                                    )
+                                )
+                                .border(1.2.dp, Color(0xFF38BDF8).copy(alpha = 0.8f), RoundedCornerShape(15.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Inventory2,
+                                contentDescription = null,
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(25.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (isArabic) "خزينة الترسانة العصبية" else "Neural Vault Arsenal",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = if (isArabic) "المقتنيات النادرة • الدمج والتخليق" else "Rare Loot • Fusion & Crafting Chamber",
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF38BDF8).copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.7f))
+                        ) {
+                            Text(
+                                text = "$totalItemsCount ${if (isArabic) "عنصر" else "Items"}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF38BDF8),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFF59E0B).copy(alpha = 0.14f),
+                            border = BorderStroke(0.8.dp, Color(0xFFF59E0B).copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = "⚡ ${uiState.totalXp} XP",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFBBF24),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // --- 2. Notification Message Banner ---
+        // --- 2. Smooth Animated Event Banner ---
         item {
             AnimatedVisibility(
                 visible = uiState.itemEventMessage != null,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = glassColors.accentColor.copy(alpha = 0.25f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, glassColors.accentColor),
+                    shape = RoundedCornerShape(16.dp),
+                    color = glassColors.accentColor.copy(alpha = 0.22f),
+                    border = BorderStroke(1.dp, glassColors.accentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -206,15 +261,16 @@ fun InventoryScreen(
                             text = uiState.itemEventMessage ?: "",
                             color = Color.White,
                             fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
                             onClick = { viewModel.clearItemMessage() },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Close",
+                                contentDescription = if (isArabic) "إغلاق" else "Close",
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -224,166 +280,39 @@ fun InventoryScreen(
             }
         }
 
-        // --- 3. Active Shields & Immunity Status Card ---
+        // --- 3. Active Shield Barrier HUD ---
         item {
-            LiquidGlassCard(modifier = Modifier.fillMaxWidth().testTag("active_shields_card")) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Shield,
-                                    contentDescription = null,
-                                    tint = ShieldCyan,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isArabic) "حالة الدروع والحصانة النشطة" else "Active Shields & Immunity",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = glassColors.onSurfaceColor
-                                )
-                            }
-                            Text(
-                                text = if (uiState.isImmunityActive) {
-                                    if (isArabic) "حصانة درع نشطة: متبقي ${uiState.immunityRemainingHours} ساعة"
-                                    else "Active Immunity: ${uiState.immunityRemainingHours} hours remaining"
-                                } else {
-                                    if (isArabic) "السعة الحالية: ${uiState.shieldCount} / 2 دروع حماية"
-                                    else "Capacity: ${uiState.shieldCount} / 2 active defense shields"
-                                },
-                                fontSize = 12.sp,
-                                color = if (uiState.isImmunityActive) Color(0xFF34D399) else glassColors.onSurfaceVariantColor
-                            )
-                        }
-
-                        // Shield slots visualizer
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            repeat(2) { index ->
-                                val filled = index < uiState.shieldCount || uiState.isImmunityActive
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(
-                                            if (filled) ShieldCyan.copy(alpha = 0.25f)
-                                            else Color.White.copy(alpha = 0.05f)
-                                        )
-                                        .border(
-                                            1.dp,
-                                            if (filled) ShieldCyan else Color.White.copy(alpha = 0.15f),
-                                            RoundedCornerShape(10.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (filled) Icons.Filled.Shield else Icons.Outlined.Shield,
-                                        contentDescription = null,
-                                        tint = if (filled) ShieldCyan else Color.Gray,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            VaultShieldStatusHud(
+                shieldCount = uiState.shieldCount,
+                isImmunityActive = uiState.isImmunityActive,
+                immunityRemainingHours = uiState.immunityRemainingHours,
+                isArabic = isArabic
+            )
         }
 
-        // --- 4. Synthesis & Fusion Lab (مختبر الدمج والصياغة) ---
-        item {
-            LiquidGlassCard(modifier = Modifier.fillMaxWidth().testTag("fusion_lab_card")) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SwapHoriz,
-                                contentDescription = null,
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (isArabic) "مختبر الدمج والصياغة العصبية" else "Neural Fusion & Crafting Lab",
-                                fontWeight = FontWeight.Bold,
-                                color = glassColors.onSurfaceColor,
-                                fontSize = 15.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Fusion Trade 1: 3 Daily Keys -> 1 Weekly Key
-                    val dailyKeys = uiState.inventory[InventoryItemType.DAILY_QUEST_SKIP_KEY] ?: 0
-                    ExchangeRow(
-                        title = if (isArabic) "دمج 3 مفاتيح يومية ➔ 1 مفتاح أسبوعي نادر" else "Fuse 3 Daily Keys ➔ 1 Weekly Key",
-                        costText = "$dailyKeys / 3 ${if (isArabic) "متوفر" else "Available"}",
-                        canAfford = dailyKeys >= 3,
-                        actionLabel = if (isArabic) "دمج المفتاح" else "Fuse Key",
-                        isArabic = isArabic,
-                        onTrade = { viewModel.fuseDailyKeysToWeeklyKey() }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Fusion Trade 2: 2 Weekly Keys -> 1 Brain Healing Potion
-                    val weeklyKeys = uiState.inventory[InventoryItemType.WEEKLY_QUEST_SKIP_KEY] ?: 0
-                    ExchangeRow(
-                        title = if (isArabic) "تخليق جرعة تعافي (+1 مستوى) ➔ 2 مفاتيح أسبوعية" else "Synthesize Healing Potion (+1 Lvl) ➔ 2 Weekly Keys",
-                        costText = "$weeklyKeys / 2 ${if (isArabic) "متوفر" else "Available"}",
-                        canAfford = weeklyKeys >= 2,
-                        actionLabel = if (isArabic) "تخليق الجرعة" else "Synthesize",
-                        isArabic = isArabic,
-                        onTrade = { viewModel.synthesizeHealingPotion() }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Fusion Trade 3: 2 Daily Keys -> 1 24H Shield
-                    ExchangeRow(
-                        title = if (isArabic) "صياغة درع حماية 24H ➔ 2 مفاتيح يومية" else "Forge 24-Hour Shield ➔ 2 Daily Keys",
-                        costText = "$dailyKeys / 2 ${if (isArabic) "متوفر" else "Available"}",
-                        canAfford = dailyKeys >= 2,
-                        actionLabel = if (isArabic) "صياغة الدرع" else "Forge Shield",
-                        isArabic = isArabic,
-                        onTrade = { viewModel.forgeShield() }
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Fusion Trade 4: 15,000 XP -> 1 Mystery Box
-                    ExchangeRow(
-                        title = if (isArabic) "فتح صندوق السايبر الغامض ➔ 15,000 XP" else "Extract Mystery Cyber Box ➔ 15,000 XP",
-                        costText = "${uiState.totalXp} / 15,000 XP",
-                        canAfford = uiState.totalXp >= 15_000L,
-                        actionLabel = if (isArabic) "فتح الصندوق" else "Open Box",
-                        isArabic = isArabic,
-                        onTrade = { viewModel.craftMysteryBox() }
-                    )
-                }
-            }
-        }
-
-        // --- 5. Category Filter Chips ---
+        // --- 4. Modern RPG Loot Grid Header + Category Chips ---
         item {
             Column {
-                Text(
-                    text = if (isArabic) "خزينة المقتنيات والعناصر (اضغط ℹ️ لمعرفة كيفية الحصول)" else "Neural Vault Items (Tap ℹ️ to learn how to obtain)",
-                    fontWeight = FontWeight.Bold,
-                    color = glassColors.onSurfaceColor,
-                    fontSize = 15.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isArabic) "⚔️ ترسانة العناصر النادرة" else "⚔️ Vault Arsenal Grid",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = glassColors.onSurfaceColor,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = if (isArabic) "اضغط ℹ️ للتفاصيل" else "Tap ℹ️ for details",
+                        fontSize = 11.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -397,19 +326,19 @@ fun InventoryScreen(
                                 Text(
                                     text = "${category.emoji} ${if (isArabic) category.titleAr else category.titleEn}",
                                     fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = glassColors.accentColor.copy(alpha = 0.25f),
-                                selectedLabelColor = glassColors.accentColor,
-                                containerColor = Color(0xFF1E293B).copy(alpha = 0.5f),
+                                selectedContainerColor = Color(0xFF38BDF8).copy(alpha = 0.24f),
+                                selectedLabelColor = Color(0xFF38BDF8),
+                                containerColor = Color(0xFF121B30),
                                 labelColor = Color(0xFF94A3B8)
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = isSelected,
-                                borderColor = if (isSelected) glassColors.accentColor else Color(0xFF334155)
+                                borderColor = if (isSelected) Color(0xFF38BDF8) else Color(0xFF283552)
                             )
                         )
                     }
@@ -417,16 +346,242 @@ fun InventoryScreen(
             }
         }
 
-        // --- 6. Items List with Info & Explainer Button ---
-        items(filteredItems) { item ->
-            val count = uiState.inventory[item] ?: 0
-            InventoryItemDetailCard(
-                item = item,
-                count = count,
-                isArabic = isArabic,
-                onInfoClick = { itemExplaining = item },
-                onUse = { viewModel.useInventoryItem(item) }
-            )
+        // --- 5. Modern 2-Column RPG Game Loot Grid ---
+        items(chunkedItems) { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                for (item in rowItems) {
+                    val count = uiState.inventory[item] ?: 0
+                    GameInventoryItemTile(
+                        item = item,
+                        count = count,
+                        isArabic = isArabic,
+                        onInfoClick = { itemExplaining = item },
+                        onUse = {
+                            if (item == InventoryItemType.MYSTERY_BOX && count > 0) {
+                                viewModel.useInventoryItem(item)
+                                craftedFeedback = CraftedRewardFeedback(
+                                    resultEmoji = "🎁",
+                                    titleEn = "Mystery Box Opened!",
+                                    titleAr = "تم فتح الصندوق الغامض!",
+                                    subtitleEn = "Your cyber loot reward has been added to your vault.",
+                                    subtitleAr = "تم استخراج جائزتك العشوائية وإضافتها لخزينتك!",
+                                    glowColor = Color(0xFF38BDF8)
+                                )
+                            } else {
+                                viewModel.useInventoryItem(item)
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
+        // --- 6. Redesigned Holographic Neural Fusion & Crafting Lab ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF0B1222).copy(alpha = 0.95f),
+                border = BorderStroke(
+                    width = 1.4.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF38BDF8).copy(alpha = labBorderAlpha),
+                            Color(0xFFA855F7).copy(alpha = labBorderAlpha * 0.75f),
+                            Color(0xFF38BDF8).copy(alpha = 0.25f)
+                        )
+                    )
+                ),
+                shadowElevation = 14.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("fusion_lab_card")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color(0xFF1D4ED8).copy(alpha = 0.14f),
+                                    Color(0xFF7E22CE).copy(alpha = 0.10f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Lab Chamber Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF0284C7), Color(0xFF9333EA))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Science,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = if (isArabic) "مختبر الدمج والصياغة العصبية" else "Neural Fusion & Crafting Lab",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    fontSize = 15.5.sp
+                                )
+                                Text(
+                                    text = if (isArabic) "حوّل الموارد إلى عناصر خارقة فوراً" else "Transmute materials into elite gear",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFA855F7).copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
+                        ) {
+                            Text(
+                                text = "4 ${if (isArabic) "وصفات" else "Recipes"}",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD8B4FE),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    val dailyKeys = uiState.inventory[InventoryItemType.DAILY_QUEST_SKIP_KEY] ?: 0
+                    val weeklyKeys = uiState.inventory[InventoryItemType.WEEKLY_QUEST_SKIP_KEY] ?: 0
+
+                    // Recipe 1: 3 Daily Keys -> 1 Weekly Key
+                    FusionBlueprintCard(
+                        ingredientEmoji = "🗝️",
+                        ingredientLabel = "×3",
+                        resultEmoji = "🔑",
+                        resultTitle = if (isArabic) "مفتاح أسبوعي نادر" else "Weekly Quest Skip Key",
+                        resultAccent = Color(0xFF38BDF8),
+                        currentAmountText = "$dailyKeys / 3 ${if (isArabic) "مفتاح يومي" else "Daily Keys"}",
+                        progressFraction = dailyKeys / 3f,
+                        canAfford = dailyKeys >= 3,
+                        actionLabel = if (isArabic) "دمج" else "Fuse",
+                        testTag = "craft_weekly_key_btn",
+                        onCraft = {
+                            if (viewModel.fuseDailyKeysToWeeklyKey()) {
+                                craftedFeedback = CraftedRewardFeedback(
+                                    resultEmoji = "🔑",
+                                    titleEn = "Weekly Key Forged!",
+                                    titleAr = "تم دمج المفتاح الأسبوعي!",
+                                    subtitleEn = "3 Daily Keys were fused into 1 Rare Weekly Quest Skip Key.",
+                                    subtitleAr = "تم صهر 3 مفاتيح يومية للحصول على مفتاح تخطي أسبوعي نادر.",
+                                    glowColor = Color(0xFF38BDF8)
+                                )
+                            }
+                        }
+                    )
+
+                    // Recipe 2: 2 Weekly Keys -> 1 Brain Healing Potion
+                    FusionBlueprintCard(
+                        ingredientEmoji = "🔑",
+                        ingredientLabel = "×2",
+                        resultEmoji = "🧪",
+                        resultTitle = if (isArabic) "جرعة التعافي (+1 مستوى)" else "Brain Healing Potion (+1 Lvl)",
+                        resultAccent = Color(0xFF10B981),
+                        currentAmountText = "$weeklyKeys / 2 ${if (isArabic) "مفتاح أسبوعي" else "Weekly Keys"}",
+                        progressFraction = weeklyKeys / 2f,
+                        canAfford = weeklyKeys >= 2,
+                        actionLabel = if (isArabic) "تخليق" else "Brew",
+                        testTag = "craft_healing_potion_btn",
+                        onCraft = {
+                            if (viewModel.synthesizeHealingPotion()) {
+                                craftedFeedback = CraftedRewardFeedback(
+                                    resultEmoji = "🧪",
+                                    titleEn = "Healing Potion Synthesized!",
+                                    titleAr = "تم تخليق جرعة التعافي!",
+                                    subtitleEn = "1 Brain Healing Potion (+1 Level & Rot Purge) added to your arsenal.",
+                                    subtitleAr = "أُضيفت جرعة التعافي الذهني (+1 مستوى وإزالة التعفن) لترسانتك.",
+                                    glowColor = Color(0xFF10B981)
+                                )
+                            }
+                        }
+                    )
+
+                    // Recipe 3: 2 Daily Keys -> 1 24H Aegis Shield
+                    FusionBlueprintCard(
+                        ingredientEmoji = "🗝️",
+                        ingredientLabel = "×2",
+                        resultEmoji = "🛡️",
+                        resultTitle = if (isArabic) "درع حماية 24 ساعة" else "24-Hour Aegis Shield",
+                        resultAccent = Color(0xFF0EA5E9),
+                        currentAmountText = "$dailyKeys / 2 ${if (isArabic) "مفتاح يومي" else "Daily Keys"}",
+                        progressFraction = dailyKeys / 2f,
+                        canAfford = dailyKeys >= 2,
+                        actionLabel = if (isArabic) "صياغة" else "Forge",
+                        testTag = "craft_shield_24h_btn",
+                        onCraft = {
+                            if (viewModel.forgeShield()) {
+                                craftedFeedback = CraftedRewardFeedback(
+                                    resultEmoji = "🛡️",
+                                    titleEn = "Aegis Shield Forged!",
+                                    titleAr = "تمت صياغة الدرع!",
+                                    subtitleEn = "1 24-Hour Defense Shield forged from 2 Daily Keys.",
+                                    subtitleAr = "تمت صياغة درع حماية 24 ساعة بنجاح من مفتاحين يوميين.",
+                                    glowColor = Color(0xFF0EA5E9)
+                                )
+                            }
+                        }
+                    )
+
+                    // Recipe 4: 15,000 XP -> 1 Mystery Cyber Box
+                    FusionBlueprintCard(
+                        ingredientEmoji = "⚡",
+                        ingredientLabel = "15K XP",
+                        resultEmoji = "🎁",
+                        resultTitle = if (isArabic) "صندوق السايبر الغامض" else "Mystery Cyber Box",
+                        resultAccent = Color(0xFFF59E0B),
+                        currentAmountText = "${uiState.totalXp} / 15,000 XP",
+                        progressFraction = uiState.totalXp / 15_000f,
+                        canAfford = uiState.totalXp >= 15_000L,
+                        actionLabel = if (isArabic) "استخراج" else "Craft",
+                        testTag = "craft_mystery_box_btn",
+                        onCraft = {
+                            if (viewModel.craftMysteryBox()) {
+                                craftedFeedback = CraftedRewardFeedback(
+                                    resultEmoji = "🎁",
+                                    titleEn = "Mystery Box Extracted!",
+                                    titleAr = "تم استخراج الصندوق الغامض!",
+                                    subtitleEn = "1 Mystery Cyber Box crafted using 15,000 XP!",
+                                    subtitleAr = "تم استخراج صندوق السايبر الغامض مقابل 15,000 XP!",
+                                    glowColor = Color(0xFFF59E0B)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
         }
 
         item {
@@ -434,349 +589,37 @@ fun InventoryScreen(
         }
     }
 
-    // --- Interactive Item Explanation & "How To Obtain" Dialog ---
+    // --- Interactive Pedestal Item Explainer Dialog ---
     itemExplaining?.let { item ->
         val count = uiState.inventory[item] ?: 0
-        AlertDialog(
-            onDismissRequest = { itemExplaining = null },
-            containerColor = Color(0xFF0F172A),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFCBD5E1),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.testTag("item_explainer_dialog"),
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(item.rarity.colorHex).copy(alpha = 0.2f))
-                            .border(1.dp, Color(item.rarity.colorHex), RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(item.iconEmoji, fontSize = 22.sp)
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isArabic) item.titleAr else item.titleEn,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(item.rarity.colorHex).copy(alpha = 0.25f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        ) {
-                            Text(
-                                text = if (isArabic) item.rarity.labelAr else item.rarity.labelEn,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(item.rarity.colorHex),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    // Section 1: What it does
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF1E293B).copy(alpha = 0.8f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = Color(0xFF38BDF8),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isArabic) "📋 ما يفعله هذا العنصر:" else "📋 What it does:",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF38BDF8)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = if (isArabic) item.descriptionAr else item.descriptionEn,
-                                fontSize = 12.sp,
-                                color = Color.White,
-                                lineHeight = 18.sp
-                            )
-                        }
-                    }
-
-                    // Section 2: How to obtain it
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF064E3B).copy(alpha = 0.4f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF059669)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🎯", fontSize = 14.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isArabic) "كيفية الحصول عليه:" else "How to obtain:",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF34D399)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = if (isArabic) item.howToObtainAr else item.howToObtainEn,
-                                fontSize = 12.sp,
-                                color = Color(0xFFE2E8F0),
-                                lineHeight = 18.sp
-                            )
-                        }
-                    }
-
-                    // Current stock status
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isArabic) "الكمية المتوفرة في حقيبتك:" else "Current stock in inventory:",
-                            fontSize = 12.sp,
-                            color = Color(0xFF94A3B8)
-                        )
-                        Text(
-                            text = "x$count",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (count > 0) Color(0xFF38BDF8) else Color(0xFF64748B)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (count > 0) {
-                    Button(
-                        onClick = {
-                            viewModel.useInventoryItem(item)
-                            itemExplaining = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(item.rarity.colorHex)),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text(
-                            text = if (isArabic) "استخدام الآن" else "Use Now",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { itemExplaining = null }) {
-                    Text(
-                        text = if (isArabic) "إغلاق" else "Close",
-                        color = Color(0xFF94A3B8)
+        ItemExplainerDialog(
+            item = item,
+            count = count,
+            isArabic = isArabic,
+            onUseNow = {
+                viewModel.useInventoryItem(item)
+                itemExplaining = null
+                if (item == InventoryItemType.MYSTERY_BOX && count > 0) {
+                    craftedFeedback = CraftedRewardFeedback(
+                        resultEmoji = "🎁",
+                        titleEn = "Mystery Box Opened!",
+                        titleAr = "تم فتح الصندوق الغامض!",
+                        subtitleEn = "Your cyber loot reward has been added to your vault.",
+                        subtitleAr = "تم استخراج جائزتك العشوائية وإضافتها لخزينتك!",
+                        glowColor = Color(0xFF38BDF8)
                     )
                 }
-            }
+            },
+            onDismiss = { itemExplaining = null }
         )
     }
-}
 
-@Composable
-fun InventoryItemDetailCard(
-    item: InventoryItemType,
-    count: Int,
-    isArabic: Boolean,
-    onInfoClick: () -> Unit,
-    onUse: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color(item.rarity.colorHex).copy(alpha = 0.12f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(item.rarity.colorHex).copy(alpha = 0.45f)),
-        modifier = Modifier.fillMaxWidth().testTag("item_card_${item.id}")
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon container
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(item.iconEmoji, fontSize = 28.sp)
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Details
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isArabic) item.titleAr else item.titleEn,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(item.rarity.colorHex).copy(alpha = 0.25f)
-                    ) {
-                        Text(
-                            text = if (isArabic) item.rarity.labelAr else item.rarity.labelEn,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(item.rarity.colorHex),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = if (isArabic) item.descriptionAr else item.descriptionEn,
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8),
-                    maxLines = 2
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "${if (isArabic) "المخزون:" else "In Stock:"} x$count",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (count > 0) Color(0xFF38BDF8) else Color(0xFF64748B)
-                    )
-
-                    // Prominent Info/Explanation badge button
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f))
-                            .clickable { onInfoClick() }
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                            .testTag("item_info_btn_${item.id}")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = if (isArabic) "شرح العنصر" else "Item Info",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isArabic) "كيفية الحصول" else "How to get",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF38BDF8)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Use Button
-            Button(
-                onClick = onUse,
-                enabled = count > 0,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(item.rarity.colorHex),
-                    disabledContainerColor = Color(0xFF334155)
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(36.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 0.dp)
-            ) {
-                Text(
-                    text = if (count > 0) (if (isArabic) "استخدام" else "Use") else (if (isArabic) "فارغ" else "0"),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (count > 0) Color.White else Color(0xFF64748B)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ExchangeRow(
-    title: String,
-    costText: String,
-    canAfford: Boolean,
-    actionLabel: String,
-    isArabic: Boolean,
-    onTrade: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF1E293B).copy(alpha = 0.5f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-                Text(
-                    text = costText,
-                    fontSize = 11.sp,
-                    color = if (canAfford) Color(0xFF34D399) else Color(0xFF94A3B8)
-                )
-            }
-
-            Button(
-                onClick = onTrade,
-                enabled = canAfford,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0284C7),
-                    disabledContainerColor = Color(0xFF334155)
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(32.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp)
-            ) {
-                Text(
-                    text = actionLabel,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (canAfford) Color.White else Color(0xFF64748B)
-                )
-            }
-        }
+    // --- Dazzling Crafting & Loot Celebration VFX Overlay ---
+    craftedFeedback?.let { reward ->
+        CraftingCelebrationDialog(
+            reward = reward,
+            isArabic = isArabic,
+            onDismiss = { craftedFeedback = null }
+        )
     }
 }
