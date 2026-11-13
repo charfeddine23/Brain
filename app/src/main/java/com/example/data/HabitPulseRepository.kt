@@ -52,6 +52,25 @@ class HabitPulseRepository(context: Context) {
             .apply()
     }
 
+    // --- Daily 1000-Point Protective Safety Buffer Pool ---
+    fun getDailyBufferRemaining(): Int {
+        val today = getTodayKey()
+        val storedDate = prefs.getString(KEY_BUFFER_DATE, "") ?: ""
+        return if (storedDate == today) {
+            prefs.getInt(KEY_DAILY_BUFFER_REMAINING, 1000).coerceIn(0, 1000)
+        } else {
+            1000
+        }
+    }
+
+    fun setDailyBufferRemaining(points: Int) {
+        val today = getTodayKey()
+        prefs.edit()
+            .putString(KEY_BUFFER_DATE, today)
+            .putInt(KEY_DAILY_BUFFER_REMAINING, points.coerceIn(0, 1000))
+            .apply()
+    }
+
     // --- Theme & Language ---
     fun getSelectedTheme(): ThemeType {
         val name = prefs.getString(KEY_SELECTED_THEME, ThemeType.LIQUID_GLASS.name)
@@ -297,5 +316,7 @@ class HabitPulseRepository(context: Context) {
         private const val KEY_IMMUNITY_UNTIL = "immunity_until_ts"
         private const val KEY_CLAIMED_MILESTONE = "claimed_milestone_streak"
         private const val KEY_HAS_COMPLETED_TUTORIAL = "has_completed_tutorial"
+        private const val KEY_BUFFER_DATE = "daily_buffer_date"
+        private const val KEY_DAILY_BUFFER_REMAINING = "daily_buffer_remaining"
     }
 }

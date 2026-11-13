@@ -60,14 +60,14 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun `Case B Single Breach freezes streak safely with no reset and awards 500 safety points`() {
+    fun `single breach deducted from 1000-pt buffer still awards +1 streak while buffer above 0`() {
         val singleBreach = listOf(
             AppThreshold(
                 packageName = "com.instagram.android",
                 appName = "Instagram",
                 maxMinutes = 30,
                 maxLaunches = 10,
-                currentMinutes = 45,
+                currentMinutes = 45, // 15m excess = 1 block = -50 pts from buffer
                 currentLaunches = 5
             )
         )
@@ -81,14 +81,16 @@ class ExampleUnitTest {
 
         assertEquals(DailyOutcomeType.SINGLE_BREACH, result.outcomeType)
         assertEquals(1, result.totalBreaches)
-        assertEquals(0, result.streakDelta) // Streak FROZEN (no change, no reset)
+        assertEquals(1, result.streakDelta) // +1 streak day awarded because 950 > 0 in buffer
         assertFalse(result.isStreakReset)
-        assertEquals(500, result.pointsAwardedOrDeducted) // +500 safety points
+        assertEquals(950, result.bufferPoolRemaining)
+        assertEquals(0, result.pointsAwardedOrDeducted)
+        assertEquals(0, result.levelsGainedOrLost)
         assertFalse(result.wasShieldConsumed)
     }
 
     @Test
-    fun `Case C Multi-Breach with buffer absorption resets streak and deducts from buffer`() {
+    fun `multi-breach within 1000-pt buffer deducts from buffer and preserves +1 streak`() {
         val breaches = listOf(
             AppThreshold(packageName = "app1", appName = "App 1", maxMinutes = 20, maxLaunches = 10, currentMinutes = 30, currentLaunches = 5), // 10m excess -> -50 pts
             AppThreshold(packageName = "app2", appName = "App 2", maxMinutes = 20, maxLaunches = 10, currentMinutes = 40, currentLaunches = 5)  // 20m excess -> -100 pts
@@ -103,16 +105,36 @@ class ExampleUnitTest {
 
         assertEquals(DailyOutcomeType.MULTI_BREACH, result.outcomeType)
         assertEquals(2, result.totalBreaches)
-        assertTrue(result.isStreakReset)
-        assertEquals(-150, result.pointsAwardedOrDeducted)
+        assertFalse(result.isStreakReset)
+        assertEquals(1, result.streakDelta) // +1 streak because 850 > 0 remain in buffer
+        assertEquals(0, result.pointsAwardedOrDeducted)
         assertEquals(850, result.bufferPoolRemaining) // 1000 - 150 = 850 pts
         assertEquals(0, result.levelsGainedOrLost)
         assertFalse(result.wasShieldConsumed)
     }
 
     @Test
-    fun `Case C Multi-Breach exceeding buffer triggers Shield auto-consumption`() {
-        // Massive breach: 250 minutes over across 3 apps -> penalty = 25 * 50 = 1250 pts > 1000 buffer
+    fun `exact 1000-pt buffer depletion resets streak to 0`() {
+        // 200 mins excess across 2 apps = 20 blocks * 50 = 1000 pts deducted -> buffer reaches 0
+        val drainingBreaches = listOf(
+            AppThreshold(packageName = "app1", appName = "App 1", maxMinutes = 20, maxLaunches = 10, currentMinutes = 120, currentLaunches = 5),
+            AppThreshold(packageName = "app2", appName = "App 2", maxMinutes = 20, maxLaunches = 10, currentMinutes = 120, currentLaunches = 5)
+        )
+
+        val result = HabitPulseEngine.evaluateDailyOutcome(
+            breachedApps = drainingBreaches,
+            currentStreak = 12,
+            currentTotalPoints = 4000,
+            hasActiveShield = false
+        )
+
+        assertEquals(0, result.bufferPoolRemaining)
+        assertTrue(result.isStreakReset)
+        assertEquals(-12, result.streakDelta)
+    }
+
+    @Test
+    fun `heavy breach exceeding 1000-pt buffer with Shield resets streak and blocks demotion`() {
         val heavyBreaches = listOf(
             AppThreshold(packageName = "app1", appName = "App 1", maxMinutes = 20, maxLaunches = 10, currentMinutes = 120, currentLaunches = 5),
             AppThreshold(packageName = "app2", appName = "App 2", maxMinutes = 20, maxLaunches = 10, currentMinutes = 170, currentLaunches = 5)
@@ -126,14 +148,14 @@ class ExampleUnitTest {
         )
 
         assertEquals(DailyOutcomeType.MULTI_BREACH, shieldedResult.outcomeType)
-        assertTrue(shieldedResult.wasShieldConsumed) // Shield auto-consumed!
-        assertEquals(0, shieldedResult.levelsGainedOrLost) // Shield stopped demotion!
+        assertTrue(shieldedResult.wasShieldConsumed)
+        assertTrue(shieldedResult.isStreakReset)
+        assertEquals(0, shieldedResult.levelsGainedOrLost)
         assertEquals(0, shieldedResult.bufferPoolRemaining)
     }
 
     @Test
-    fun `Case C Multi-Breach exceeding buffer without Shield triggers Unrestricted Demotion`() {
-        // Massive breach: 250 minutes over -> penalty = 1250 pts. Deficit over buffer = 250 pts
+    fun `heavy breach exceeding 1000-pt buffer without Shield resets streak and triggers demotion`() {
         val heavyBreaches = listOf(
             AppThreshold(packageName = "app1", appName = "App 1", maxMinutes = 20, maxLaunches = 10, currentMinutes = 120, currentLaunches = 5),
             AppThreshold(packageName = "app2", appName = "App 2", maxMinutes = 20, maxLaunches = 10, currentMinutes = 170, currentLaunches = 5)
@@ -142,13 +164,15 @@ class ExampleUnitTest {
         val unshieldedResult = HabitPulseEngine.evaluateDailyOutcome(
             breachedApps = heavyBreaches,
             currentStreak = 30,
-            currentTotalPoints = 6000, // Level 7 (6000 pts)
+            currentTotalPoints = 6000,
             hasActiveShield = false
         )
 
         assertEquals(DailyOutcomeType.MULTI_BREACH, unshieldedResult.outcomeType)
         assertFalse(unshieldedResult.wasShieldConsumed)
-        assertTrue(unshieldedResult.levelsGainedOrLost < 0) // Demoted!
+        assertTrue(unshieldedResult.isStreakReset)
+        assertEquals(0, unshieldedResult.bufferPoolRemaining)
+        assertTrue(unshieldedResult.levelsGainedOrLost < 0)
     }
 
     @Test

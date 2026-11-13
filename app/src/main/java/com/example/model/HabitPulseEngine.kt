@@ -129,10 +129,13 @@ data class QuestItem(
 }
 
 /**
- * Daily Evaluation Outcomes:
- * - Case A: Clean Sweep (0 breaches across all apps) -> Streak +1, Dynamic Level Up, Escalating Streak Bonus.
- * - Case B: Single Breach (violation in exactly 1 app) -> Streak frozen (no increment, no reset), no demotion, +500 safety points.
- * - Case C: Multi-Breach (violations in 2+ apps) -> Streak resets to 0, Activates 1000-Point Buffer Pool, -50 pts/10 mins per app.
+ * Daily Evaluation & Safety Buffer Pool Outcomes:
+ * 1. Safety Buffer Pool: Each day starts with a 1,000-point protective buffer pool.
+ * 2. Breach Handling: Boss App threshold breaches deduct points (-50 pts per 10-min block, min 50) from this 1,000-pt buffer.
+ * 3. Streak Success Condition: Streak (+1 day) is awarded IF AND ONLY IF remaining buffer > 0.
+ *    - 0 breaches: Full escalating streak bonus XP awarded.
+ *    - 1+ breaches absorbed by buffer (> 0 remaining): Streak +1 day saved, no level demotion.
+ * 4. Streak Break Condition: Streak resets to 0 ONLY IF the 1,000-pt buffer reaches 0 due to heavy breaches.
  */
 enum class DailyOutcomeType {
     CLEAN_SWEEP,
@@ -260,11 +263,27 @@ object HabitPulseEngine {
     }
 
     /**
-     * Evaluates the 3 Daily Outcomes:
-     * @param breachedApps List of apps that breached time or launch thresholds today
-     * @param currentStreak Current streak count
-     * @param currentTotalPoints Current total accumulated points
-     * @param hasActiveShield Whether an Aegis shield is active or in inventory
+     * Calculates total penalty points deducted from the 1,000-point safety buffer
+     * across all breached Boss Apps (-50 pts per 10-min excess block, minimum 50 pts per breached app).
+     */
+    fun calculateBreachDeduction(breachedApps: List<AppThreshold>): Int {
+        var totalDeduction = 0
+        for (app in breachedApps) {
+            if (app.isBreached) {
+                val excessMinutes = (app.currentMinutes - app.maxMinutes).coerceAtLeast(0)
+                val blocks = (excessMinutes / 10).coerceAtLeast(1)
+                totalDeduction += blocks * PENALTY_PER_10_MIN_BLOCK
+            }
+        }
+        return totalDeduction
+    }
+
+    /**
+     * Strict Safety Buffer & Streak Evaluation:
+     * 1. Each day provides a 1,000-point protective buffer pool.
+     * 2. Breached Boss Apps deduct points from the 1,000-pt buffer.
+     * 3. Streak +1 day is awarded IF AND ONLY IF remaining buffer > 0 (not fully exhausted).
+     * 4. Streak breaks & resets to 0 ONLY IF the 1,000-pt buffer reaches 0 due to heavy breaches.
      */
     fun evaluateDailyOutcome(
         breachedApps: List<AppThreshold>,
@@ -272,119 +291,90 @@ object HabitPulseEngine {
         currentTotalPoints: Int,
         hasActiveShield: Boolean
     ): DailyEvaluationResult {
-        val breachCount = breachedApps.size
+        val activeBreaches = breachedApps.filter { it.isBreached }
+        val breachCount = activeBreaches.size
 
-        return when {
-            // Case A: Clean Sweep (0 breaches)
-            breachCount == 0 -> {
-                val newStreak = currentStreak + 1
-                val bonus = getEscalatingStreakBonus(newStreak)
-                val newPoints = (currentTotalPoints + bonus).coerceAtMost(MAX_POINTS)
-                val oldLevel = calculateLevelFromPoints(currentTotalPoints)
-                val newLevel = calculateLevelFromPoints(newPoints)
-                val levelsGained = (newLevel - oldLevel).coerceAtLeast(0)
+        // 1. Clean Sweep: 0 breaches -> 1000 pts remain in buffer, Streak +1, full escalating XP bonus
+        if (breachCount == 0) {
+            val newStreak = currentStreak + 1
+            val bonus = getEscalatingStreakBonus(newStreak)
+            val newPoints = (currentTotalPoints + bonus).coerceAtMost(MAX_POINTS)
+            val oldLevel = calculateLevelFromPoints(currentTotalPoints)
+            val newLevel = calculateLevelFromPoints(newPoints)
+            val levelsGained = (newLevel - oldLevel).coerceAtLeast(0)
 
+            return DailyEvaluationResult(
+                outcomeType = DailyOutcomeType.CLEAN_SWEEP,
+                totalBreaches = 0,
+                streakDelta = 1,
+                pointsAwardedOrDeducted = bonus,
+                bufferPoolRemaining = DAILY_BUFFER_POOL_SIZE,
+                levelsGainedOrLost = levelsGained,
+                wasShieldConsumed = false,
+                isStreakReset = false,
+                summaryEn = "Clean Sweep! 1000/1000 buffer intact • Streak +1 day • +$bonus XP bonus (+$levelsGained lvl).",
+                summaryAr = "فوز ناصع! مخزن الأمان 1000/1000 كامل • السلسلة +1 يوم • مكافأة +$bonus نقطة (+$levelsGained مستوى)."
+            )
+        }
+
+        // 2. Breaches occurred: deduct penalty points from the 1,000-pt safety buffer pool
+        val totalDeduction = calculateBreachDeduction(activeBreaches)
+        val remainingBuffer = (DAILY_BUFFER_POOL_SIZE - totalDeduction).coerceAtLeast(0)
+        val bufferDeficit = (totalDeduction - DAILY_BUFFER_POOL_SIZE).coerceAtLeast(0)
+        val outcomeCategory = if (breachCount == 1) DailyOutcomeType.SINGLE_BREACH else DailyOutcomeType.MULTI_BREACH
+
+        // 3. Streak Success Condition: Remaining buffer > 0 -> Streak +1 day awarded!
+        return if (remainingBuffer > 0) {
+            DailyEvaluationResult(
+                outcomeType = outcomeCategory,
+                totalBreaches = breachCount,
+                streakDelta = 1,
+                pointsAwardedOrDeducted = 0, // Deducted from 1000-pt buffer, permanent XP untouched
+                bufferPoolRemaining = remainingBuffer,
+                levelsGainedOrLost = 0,
+                wasShieldConsumed = false,
+                isStreakReset = false,
+                summaryEn = "Buffer Survived ($remainingBuffer/$DAILY_BUFFER_POOL_SIZE left)! Deducted -$totalDeduction from safety buffer. Streak +1 day preserved!",
+                summaryAr = "نجا مخزن الأمان (تبقى $remainingBuffer/$DAILY_BUFFER_POOL_SIZE)! تم خصم -$totalDeduction من المخزن فقط. السلسلة +1 يوم بنجاح!"
+            )
+        } else {
+            // 4. Streak Break Condition: Buffer completely drained (reached 0) -> Streak resets to 0
+            if (hasActiveShield) {
                 DailyEvaluationResult(
-                    outcomeType = DailyOutcomeType.CLEAN_SWEEP,
-                    totalBreaches = 0,
-                    streakDelta = 1,
-                    pointsAwardedOrDeducted = bonus,
-                    bufferPoolRemaining = DAILY_BUFFER_POOL_SIZE,
-                    levelsGainedOrLost = levelsGained,
-                    wasShieldConsumed = false,
-                    isStreakReset = false,
-                    summaryEn = "Case A: Clean Sweep! Streak +1. Escalating Streak Bonus: +$bonus pts. Levels Gained: +$levelsGained.",
-                    summaryAr = "الحالة أ: فوز ناصع! تتابع +1. مكافأة التتابع المتصاعدة: +$bonus نقطة. ارتقاء المستويات: +$levelsGained."
+                    outcomeType = DailyOutcomeType.MULTI_BREACH,
+                    totalBreaches = breachCount,
+                    streakDelta = -currentStreak,
+                    pointsAwardedOrDeducted = 0,
+                    bufferPoolRemaining = 0,
+                    levelsGainedOrLost = 0,
+                    wasShieldConsumed = true,
+                    isStreakReset = true,
+                    summaryEn = "Buffer Exhausted (0/1000)! Streak reset to 0. Active Shield consumed to block level demotions.",
+                    summaryAr = "نفد مخزن الأمان (0/1000)! تم تصفير السلسلة إلى 0. تم استهلاك الدرع لمنع هبوط المستوى."
                 )
-            }
-
-            // Case B: Single Breach (violation in exactly 1 app)
-            breachCount == 1 -> {
-                val safetyPoints = 500
-                val newPoints = (currentTotalPoints + safetyPoints).coerceAtMost(MAX_POINTS)
+            } else {
                 val oldLevel = calculateLevelFromPoints(currentTotalPoints)
-                val newLevel = calculateLevelFromPoints(newPoints)
-                val levelsGained = (newLevel - oldLevel).coerceAtLeast(0)
-
-                DailyEvaluationResult(
-                    outcomeType = DailyOutcomeType.SINGLE_BREACH,
-                    totalBreaches = 1,
-                    streakDelta = 0, // Streak is FROZEN: no increment, no reset
-                    pointsAwardedOrDeducted = safetyPoints,
-                    bufferPoolRemaining = DAILY_BUFFER_POOL_SIZE,
-                    levelsGainedOrLost = levelsGained,
-                    wasShieldConsumed = false,
-                    isStreakReset = false,
-                    summaryEn = "Case B: Single Breach. Streak frozen safely (no reset). +$safetyPoints safety points awarded to current pool.",
-                    summaryAr = "الحالة ب: تجاوز فردي. تم تجميد التتابع بأمان (بدون تصفير). تم منح +$safetyPoints نقطة أمان للمستوى."
-                )
-            }
-
-            // Case C: Multi-Breach (violations in 2+ apps)
-            else -> {
-                // Deduct -50 points per 10 minutes of breach per app
-                var totalDeduction = 0
-                for (app in breachedApps) {
-                    val excessMinutes = (app.currentMinutes - app.maxMinutes).coerceAtLeast(0)
-                    val blocks = (excessMinutes / 10).coerceAtLeast(1)
-                    totalDeduction += blocks * PENALTY_PER_10_MIN_BLOCK
-                }
-
-                val bufferDeficit = totalDeduction - DAILY_BUFFER_POOL_SIZE
-
-                if (bufferDeficit <= 0) {
-                    // Buffer absorbed the entire penalty
-                    val remainingBuffer = DAILY_BUFFER_POOL_SIZE - totalDeduction
-                    DailyEvaluationResult(
-                        outcomeType = DailyOutcomeType.MULTI_BREACH,
-                        totalBreaches = breachCount,
-                        streakDelta = -currentStreak,
-                        pointsAwardedOrDeducted = -totalDeduction,
-                        bufferPoolRemaining = remainingBuffer,
-                        levelsGainedOrLost = 0,
-                        wasShieldConsumed = false,
-                        isStreakReset = true,
-                        summaryEn = "Case C: Multi-Breach ($breachCount apps). Streak reset to 0. 1000-pt buffer absorbed -$totalDeduction pts. $remainingBuffer pts left in buffer.",
-                        summaryAr = "الحالة ج: تجاوزات متعددة ($breachCount تطبيقات). تم تصفير التتابع. المخزن المؤقت امتص -$totalDeduction نقطة. تبقى $remainingBuffer نقطة."
-                    )
+                val newPoints = (currentTotalPoints - bufferDeficit).coerceAtLeast(0)
+                val actualNewLevel = calculateLevelFromPoints(newPoints)
+                val actualLevelsLost = if (bufferDeficit > 0) {
+                    val minDemotion = (bufferDeficit / POINTS_PER_LEVEL) + 1
+                    (oldLevel - actualNewLevel).coerceAtLeast(minDemotion).coerceAtMost(oldLevel - 1)
                 } else {
-                    // Buffer depleted!
-                    if (hasActiveShield) {
-                        // Shield auto-consumes and halts demotion entirely
-                        DailyEvaluationResult(
-                            outcomeType = DailyOutcomeType.MULTI_BREACH,
-                            totalBreaches = breachCount,
-                            streakDelta = -currentStreak,
-                            pointsAwardedOrDeducted = -DAILY_BUFFER_POOL_SIZE,
-                            bufferPoolRemaining = 0,
-                            levelsGainedOrLost = 0,
-                            wasShieldConsumed = true,
-                            isStreakReset = true,
-                            summaryEn = "Case C: Multi-Breach! Buffer empty, but Shield AUTO-CONSUMED! Prevented all level demotions.",
-                            summaryAr = "الحالة ج: تجاوزات متعددة! نفد المخزن المؤقت، لكن الدرع استُهلك تلقائياً ومنع كل هبوط في المستوى."
-                        )
-                    } else {
-                        // Unrestricted Demotion Engine: drops levels progressively based on points beyond buffer
-                        val demotedLevels = (bufferDeficit / POINTS_PER_LEVEL) + 1
-                        val newPoints = (currentTotalPoints - bufferDeficit).coerceAtLeast(0)
-                        val oldLevel = calculateLevelFromPoints(currentTotalPoints)
-                        val actualNewLevel = calculateLevelFromPoints(newPoints)
-                        val actualLevelsLost = (oldLevel - actualNewLevel).coerceAtLeast(demotedLevels)
-
-                        DailyEvaluationResult(
-                            outcomeType = DailyOutcomeType.MULTI_BREACH,
-                            totalBreaches = breachCount,
-                            streakDelta = -currentStreak,
-                            pointsAwardedOrDeducted = -totalDeduction,
-                            bufferPoolRemaining = 0,
-                            levelsGainedOrLost = -actualLevelsLost,
-                            wasShieldConsumed = false,
-                            isStreakReset = true,
-                            summaryEn = "Case C: Unrestricted Demotion! Buffer destroyed (-$bufferDeficit pts over). Dropped -$actualLevelsLost levels! (Level $actualNewLevel).",
-                            summaryAr = "الحالة ج: هبوط غير مقيد في المستويات! تم تدمير المخزن المؤقت. هبطت بمقدار -$actualLevelsLost مستويات! (المستوى $actualNewLevel)."
-                        )
-                    }
+                    0
                 }
+
+                DailyEvaluationResult(
+                    outcomeType = DailyOutcomeType.MULTI_BREACH,
+                    totalBreaches = breachCount,
+                    streakDelta = -currentStreak,
+                    pointsAwardedOrDeducted = if (bufferDeficit > 0) -bufferDeficit else 0,
+                    bufferPoolRemaining = 0,
+                    levelsGainedOrLost = -actualLevelsLost,
+                    wasShieldConsumed = false,
+                    isStreakReset = true,
+                    summaryEn = "Buffer Exhausted (0/1000)! Streak reset to 0 (-$totalDeduction total breach penalty). Levels lost: -$actualLevelsLost.",
+                    summaryAr = "نفد مخزن الأمان تماماً (0/1000)! تم تصفير السلسلة إلى 0. هبوط المستوى: -$actualLevelsLost."
+                )
             }
         }
     }

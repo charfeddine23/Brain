@@ -170,7 +170,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 totalPoints = totalPts,
                 pointsInCurrentLevel = ptsInLevel,
                 levelProgress = prog,
-                dailyBufferPool = HabitPulseEngine.DAILY_BUFFER_POOL_SIZE,
+                dailyBufferPool = repository.getDailyBufferRemaining(),
                 rankTitle = HabitPulseEngine.getRankTitle(level, isAr),
                 rankBadge = HabitPulseEngine.getRankBadgeEmoji(level),
                 flameScore = flame,
@@ -358,14 +358,12 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * STREAK, DEMOTION, AND SHIELD IMMUNITY SYSTEM:
-     * - If active shield / immunity is ON: Absorbs breach (0 Level lost, streak saved, 0 rot added)!
-     * - If shield available in inventory: Auto-triggers, consumes 1 shield, grants 24-hr immunity, absorbs penalty!
-     * - If unprotected:
-     *     - Brain Demoted by 1 Level (-1 Level, min 1)!
-     *     - Streak reset to 0!
-     *     - Visual rot surge applied!
-     *     - Flame score deducted (-10 first, -20 second, reset on 3rd).
+     * LIVE BREACH & 1,000-POINT SAFETY BUFFER SYSTEM:
+     * 1. If active shield immunity is ON -> 100% absorbed (0 deducted from buffer, 0 streak impact).
+     * 2. Otherwise -> deducts Boss App breach points from today's 1,000-pt protective buffer pool.
+     * 3. While remaining buffer > 0 -> Streak is SAFE and preserved! No demotion!
+     * 4. ONLY IF remaining buffer reaches 0 -> Shield auto-activates from inventory (if available) to stop demotion,
+     *    and the streak breaks & resets to 0.
      */
     fun executeBreachPenalty(threshold: AppThreshold) {
         val currentBreaches = repository.getDailyBreachesCount() + 1
@@ -378,7 +376,6 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         val legacyShields = repository.getShieldCount()
 
         if (isImmune) {
-            // Already under active shield barrier: 100% absorbed!
             val log = BreachRecord(
                 id = UUID.randomUUID().toString(),
                 packageName = threshold.packageName,
@@ -401,8 +398,47 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
+        // Deduct from today's 1,000-point safety buffer across all breached Boss Apps
+        val singleAppPenalty = HabitPulseEngine.calculateBreachDeduction(listOf(threshold))
+        val allBreachedDeduction = HabitPulseEngine.calculateBreachDeduction(
+            _uiState.value.thresholds.filter { it.isBreached }
+        ).coerceAtLeast(singleAppPenalty)
+        val remainingBuffer = (HabitPulseEngine.DAILY_BUFFER_POOL_SIZE - allBreachedDeduction).coerceAtLeast(0)
+        repository.setDailyBufferRemaining(remainingBuffer)
+
+        if (remainingBuffer > 0) {
+            // Buffer survived (> 0 points left): Streak is NOT broken and Level is NOT demoted!
+            val log = BreachRecord(
+                id = UUID.randomUUID().toString(),
+                packageName = threshold.packageName,
+                appName = threshold.appName,
+                timestamp = System.currentTimeMillis(),
+                breachIndexToday = currentBreaches,
+                penaltyDeducted = singleAppPenalty,
+                wasAbsorbedByShield = false,
+                streakResetOccurred = false
+            )
+            repository.addBreachRecord(log)
+            _uiState.update {
+                it.copy(
+                    dailyBufferPool = remainingBuffer,
+                    dailyBreachesCount = currentBreaches,
+                    isEggBlockedToday = true,
+                    breachLogs = repository.getBreachRecords(),
+                    itemEventMessage = if (it.isArabic) {
+                        "🛡️ امتص مخزن الأمان التجاوز (-$singleAppPenalty نقطة). المتبقي: $remainingBuffer / 1000"
+                    } else {
+                        "🛡️ Safety Buffer absorbed -$singleAppPenalty pts ($remainingBuffer / 1000 left). Streak safe!"
+                    }
+                )
+            }
+            return
+        }
+
+        // Buffer completely drained (reached 0): Check Shield or apply Streak Reset + Demotion
+        repository.setStreakDays(0)
+
         if (has24hShield || has1wShield || legacyShields > 0) {
-            // AUTO-ACTIVATE SHIELD FROM INVENTORY
             val immunityDuration = if (has1wShield && !has24hShield) 7 * 24 * 3600 * 1000L else 24 * 3600 * 1000L
             val immunityUntil = System.currentTimeMillis() + immunityDuration
 
@@ -416,7 +452,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             repository.setActiveImmunityUntil(immunityUntil)
 
             val updatedInv = repository.getInventory()
-            val remainingShields = (updatedInv[InventoryItemType.SHIELD_24H] ?: 0) + (updatedInv[InventoryItemType.SHIELD_1WEEK] ?: 0)
+            val remainingShields = computeTotalShields(updatedInv)
 
             val log = BreachRecord(
                 id = UUID.randomUUID().toString(),
@@ -424,17 +460,16 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 appName = threshold.appName,
                 timestamp = System.currentTimeMillis(),
                 breachIndexToday = currentBreaches,
-                penaltyDeducted = 0,
+                penaltyDeducted = HabitPulseEngine.DAILY_BUFFER_POOL_SIZE,
                 wasAbsorbedByShield = true,
-                streakResetOccurred = false
+                streakResetOccurred = true
             )
             repository.addBreachRecord(log)
 
-            // Shield Defense Bonus XP
-            addXp(2500L, "Shield Defense")
-
             _uiState.update {
                 it.copy(
+                    dailyBufferPool = 0,
+                    streakDays = 0,
                     inventory = updatedInv,
                     shieldCount = remainingShields,
                     activeImmunityUntilMillis = immunityUntil,
@@ -447,25 +482,14 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 )
             }
         } else {
-            // UNPROTECTED DEMOTION PENALTY
+            // Unprotected & Buffer Exhausted (0/1000): Streak resets to 0 + Brain Demotion + Rot surge
             val currentLevel = _uiState.value.brainLevel
             val demotedLevel = (currentLevel - 1).coerceAtLeast(1)
             val newXp = HabitPulseEngine.getXpForLevel(demotedLevel)
             repository.setTotalXp(newXp)
 
-            // Reset Streak to 0!
-            repository.setStreakDays(0)
-
-            // Flame deduction
-            val penaltyPoints = when (currentBreaches) {
-                1 -> 10
-                2 -> 20
-                else -> 40
-            }
-            val newFlame = (repository.getFlameScore() - penaltyPoints).coerceAtLeast(0)
+            val newFlame = (repository.getFlameScore() - 25).coerceAtLeast(0)
             repository.setFlameScore(newFlame)
-
-            // Visual Rot Surge
             increaseBrainRot(30f)
 
             val log = BreachRecord(
@@ -474,7 +498,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 appName = threshold.appName,
                 timestamp = System.currentTimeMillis(),
                 breachIndexToday = currentBreaches,
-                penaltyDeducted = penaltyPoints,
+                penaltyDeducted = singleAppPenalty,
                 wasAbsorbedByShield = false,
                 streakResetOccurred = true
             )
@@ -487,6 +511,8 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 it.copy(
                     brainLevel = demotedLevel,
                     totalXp = newXp,
+                    totalPoints = newXp.toInt(),
+                    dailyBufferPool = 0,
                     rankTitle = title,
                     rankBadge = badge,
                     flameScore = newFlame,
@@ -495,7 +521,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                     isEggBlockedToday = true,
                     isGlitchingActive = true,
                     breachLogs = repository.getBreachRecords(),
-                    activeShieldEvent = ShieldEvent.PenaltyApplied(threshold.appName, currentBreaches, penaltyPoints, true)
+                    activeShieldEvent = ShieldEvent.PenaltyApplied(threshold.appName, currentBreaches, singleAppPenalty, true)
                 )
             }
             scheduleGlitchReset()
@@ -814,16 +840,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * Triggers the 3 Daily Evaluation Outcomes:
-     * - Case A (Clean Sweep): 0 breaches -> Dynamic level-up, Streak +1, Escalating streak bonus.
-     * - Case B (Single Breach): 1 app breach -> Streak frozen (no reset), +500 safety points.
-     * - Case C (Multi-Breach): 2+ breaches -> Streak reset to 0, 1000-pt buffer pool deduction (-50 pts/10min).
-     *     - If buffer reaches 0: Shield auto-consumes OR unrestricted multi-level demotion!
+     * Evaluates End-of-Day Boss Apps Breaches against the 1,000-Point Safety Buffer Pool:
+     * 1. Deducts breach penalties from the 1,000-pt buffer pool.
+     * 2. Awards & saves +1 Streak Day IF AND ONLY IF remaining buffer > 0.
+     * 3. Resets Streak to 0 ONLY IF the 1,000-pt buffer reaches 0 due to heavy breaches.
      */
     fun triggerDailyEvaluation() {
         val thresholds = _uiState.value.thresholds
         val breachedApps = thresholds.filter { it.isBreached }
-        val currentStreak = _uiState.value.streakDays
+        val currentStreak = repository.getStreakDays()
         val currentTotalPoints = _uiState.value.totalPoints
         val hasShield = (_uiState.value.inventory[InventoryItemType.SHIELD_24H] ?: 0) > 0 ||
                 (_uiState.value.inventory[InventoryItemType.SHIELD_1WEEK] ?: 0) > 0 ||
@@ -837,7 +862,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             hasActiveShield = hasShield
         )
 
-        // Apply state updates based on outcome
+        // Consume Shield if buffer reached 0 and Shield blocked demotions
         if (result.wasShieldConsumed) {
             val inv = _uiState.value.inventory
             if ((inv[InventoryItemType.SHIELD_24H] ?: 0) > 0) {
@@ -849,10 +874,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
 
+        // Persist remaining 1,000-pt daily buffer
+        repository.setDailyBufferRemaining(result.bufferPoolRemaining)
+
+        // Persist permanent XP changes (Clean Sweep bonus or overflow demotion)
         val updatedPoints = (currentTotalPoints + result.pointsAwardedOrDeducted).coerceIn(0, HabitPulseEngine.MAX_POINTS)
         repository.setTotalXp(updatedPoints.toLong())
 
-        val newStreak = if (result.isStreakReset) 0 else (currentStreak + result.streakDelta)
+        // Streak rule: +1 day iff buffer > 0, reset to 0 iff buffer == 0
+        val newStreak = if (result.isStreakReset) 0 else (currentStreak + result.streakDelta).coerceAtLeast(0)
         repository.setStreakDays(newStreak)
 
         val newLevel = HabitPulseEngine.calculateLevelFromPoints(updatedPoints)
@@ -861,8 +891,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         val title = HabitPulseEngine.getRankTitle(newLevel, _uiState.value.isArabic)
         val badge = HabitPulseEngine.getRankBadgeEmoji(newLevel)
 
+        val adjustedThresholds = applyDynamicShrinkingLimits(thresholds, newLevel)
+        repository.saveAppThresholds(adjustedThresholds)
+
+        val claimedMilestone = repository.getLastClaimedMilestoneStreak()
+        val nextMilestone = ((newStreak / 5) + 1) * 5
+        val canClaimMilestone = newStreak >= 5 && newStreak > claimedMilestone && (newStreak % 5 == 0 || newStreak > (claimedMilestone + 4))
+
         val updatedInv = repository.getInventory()
-        val totalShields = (updatedInv[InventoryItemType.SHIELD_24H] ?: 0) + (updatedInv[InventoryItemType.SHIELD_1WEEK] ?: 0)
+        val totalShields = computeTotalShields(updatedInv)
 
         _uiState.update {
             it.copy(
@@ -875,8 +912,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 rankBadge = badge,
                 streakDays = newStreak,
                 dailyBufferPool = result.bufferPoolRemaining,
+                thresholds = adjustedThresholds,
+                isMilestoneRewardClaimable = canClaimMilestone,
+                nextMilestoneTarget = nextMilestone,
                 inventory = updatedInv,
-                shieldCount = totalShields.coerceAtLeast(repository.getShieldCount()),
+                shieldCount = totalShields,
                 latestDailyOutcome = result,
                 itemEventMessage = if (it.isArabic) result.summaryAr else result.summaryEn,
                 isGlitchingActive = result.levelsGainedOrLost < 0,

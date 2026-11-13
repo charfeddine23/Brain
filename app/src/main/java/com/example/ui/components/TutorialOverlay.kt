@@ -738,30 +738,30 @@ private fun StepBufferPoolAndOutcomes(isArabic: Boolean) {
                     }
                     DailyOutcomeType.SINGLE_BREACH -> {
                         Text(
-                            text = if (isArabic) "❄️ الحالة ب: تجاوز فردي (تطبيق واحد)" else "❄️ Case B: Single Breach (1 App)",
+                            text = if (isArabic) "🛡️ الحالة ب: امتصاص المخزن (تبقى > 0 نقطة)" else "🛡️ Case B: Buffer Protected (> 0 pts left)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF38BDF8)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (isArabic) "• تجميد آمن للتتابع (لا زيادة ولا تصفير)\n• لا هبوط في المستوى\n• منح +500 نقطة أمان لمسبحك العصبي"
-                                   else "• Streak FROZEN safely (no reset, no demotion)\n• Safe harbor protection\n• +500 safety points awarded to current pool",
+                            text = if (isArabic) "• خصم نقاط التجاوز من مخزن الـ 1000 نقطة فقط\n• ما دام يتبقى > 0 نقطة: تُمنح +1 يوم للسلسلة بأمان!\n• لا تصفير ولا هبوط في المستوى"
+                                   else "• Deducts breach points from 1,000-pt buffer only\n• As long as > 0 pts remain: +1 Day Streak awarded!\n• Zero level demotion",
                             fontSize = 11.sp,
                             color = Color(0xFFE2E8F0)
                         )
                     }
                     DailyOutcomeType.MULTI_BREACH -> {
                         Text(
-                            text = if (isArabic) "⚡ الحالة ج: تجاوزات متعددة (تطبيقين أو أكثر)" else "⚡ Case C: Multi-Breach (2+ Apps)",
+                            text = if (isArabic) "⚡ الحالة ج: نفاد المخزن بالكامل (0 نقطة)" else "⚡ Case C: Buffer Exhausted (0 pts left)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFEF4444)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (isArabic) "• خصم -50 نقطة لكل 10 دقائق تجاوز من مخزن الـ 1000 نقطة\n• تصفير التتابع إلى 0\n• إذا نفد المخزن بدون درع حماية: هبوط حاد في المستويات!"
-                                   else "• Deducts -50 pts per 10-min block from 1000-pt buffer\n• Streak resets to 0\n• If buffer depletes without Aegis Shield: Unrestricted demotion!",
+                            text = if (isArabic) "• يحدث فقط إذا استُنفد مخزن الـ 1000 نقطة بالكامل (وصل إلى 0)\n• تنكسر السلسلة وتُصفّر إلى 0 يوم\n• إذا نفد المخزن بدون درع حماية: هبوط في المستويات!"
+                                   else "• Triggers ONLY when 1,000-pt buffer drains completely to 0\n• Streak breaks and resets to 0\n• If depleted without Aegis Shield: Level demotion!",
                             fontSize = 11.sp,
                             color = Color(0xFFE2E8F0)
                         )

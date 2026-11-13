@@ -632,7 +632,7 @@ fun HabitPulseDashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "0 تجاوز (+1)" else "0 breaches (+1)",
+                                text = if (isArabic) "0 تجاوز (+1 يوم)" else "0 breaches (+1)",
                                 fontSize = 8.5.sp,
                                 color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
@@ -640,7 +640,7 @@ fun HabitPulseDashboardScreen(
                         }
                     }
 
-                    // Case B: Single Breach
+                    // Case B: Buffer Survived (> 0 left)
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = Color(0xFF38BDF8).copy(alpha = 0.10f),
@@ -652,14 +652,14 @@ fun HabitPulseDashboardScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isArabic) "ب: تجاوز فردي" else "B: Single",
+                                text = if (isArabic) "ب: نجا المخزن" else "B: Protected",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF38BDF8)
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "تجميد (+500)" else "Freeze (+500)",
+                                text = if (isArabic) "> 0 متبقي (+1 يوم)" else "> 0 left (+1)",
                                 fontSize = 8.5.sp,
                                 color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
@@ -667,7 +667,7 @@ fun HabitPulseDashboardScreen(
                         }
                     }
 
-                    // Case C: Multi-Breach
+                    // Case C: Buffer Exhausted (0 left -> Reset)
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = Color(0xFFEF4444).copy(alpha = 0.10f),
@@ -679,14 +679,14 @@ fun HabitPulseDashboardScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (isArabic) "ج: تجاوزات" else "C: Multi",
+                                text = if (isArabic) "ج: نفد المخزن" else "C: Drained",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFF87171)
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (isArabic) "خصم المخزن" else "Buffer penalty",
+                                text = if (isArabic) "0 متبقي (تصفير)" else "0 left (Reset)",
                                 fontSize = 8.5.sp,
                                 color = Color.White.copy(alpha = 0.75f),
                                 maxLines = 1
