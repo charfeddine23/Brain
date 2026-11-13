@@ -28,6 +28,10 @@ class HabitPulseRepository(context: Context) {
         return "${cal.get(Calendar.YEAR)}_w${cal.get(Calendar.WEEK_OF_YEAR)}"
     }
 
+    fun getLastActiveDate(): String = prefs.getString(KEY_LAST_ACTIVE_DATE, "") ?: ""
+    fun setLastActiveDate(dateKey: String) =
+        prefs.edit().putString(KEY_LAST_ACTIVE_DATE, dateKey).apply()
+
     // --- Flame & Strike ---
     fun getFlameScore(): Int = prefs.getInt(KEY_FLAME_SCORE, 100)
     fun setFlameScore(score: Int) = prefs.edit().putInt(KEY_FLAME_SCORE, score.coerceIn(0, 100)).apply()
@@ -415,5 +419,6 @@ class HabitPulseRepository(context: Context) {
         private const val KEY_WEEKLY_QUESTS_DONE = "weekly_quests_done"
         private const val KEY_WEEKLY_CLEAN_SOCIAL_DAYS = "weekly_clean_social_days"
         private const val KEY_WEEKLY_NO_DEMOTION_DAYS = "weekly_no_demotion_days"
+        private const val KEY_LAST_ACTIVE_DATE = "last_active_date"
     }
 }

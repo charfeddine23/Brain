@@ -10,11 +10,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -124,7 +126,9 @@ fun GlowingRewardsNavChip(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-            .testTag("glowing_rewards_nav_container")
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
+            .testTag("glowing_rewards_nav_btn")
     ) {
         // Outer pulsing diffuse halo
         Box(
@@ -143,17 +147,18 @@ fun GlowingRewardsNavChip(
                 )
         )
 
-        // Main clickable Glowing Pill
+        // Main Glowing Pill (exact 34.dp visual height matching Flame chip)
         Surface(
-            onClick = onClick,
             shape = RoundedCornerShape(20.dp),
             color = Color(0xF00F172A),
             border = BorderStroke(1.5.dp, glowBrush),
             shadowElevation = 8.dp,
-            modifier = Modifier.testTag("glowing_rewards_nav_btn")
+            modifier = Modifier
+                .height(34.dp)
+                .testTag("glowing_rewards_nav_container")
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {

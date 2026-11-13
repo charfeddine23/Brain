@@ -11,11 +11,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -128,50 +128,56 @@ fun HabitPulseDashboardScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Beautifully Styled Flame Streak Chip with dynamic rising fire particle sparks
-                FireParticleContainer(
-                    streakDays = uiState.streakDays
+                // Beautifully Styled Flame Streak Chip matching GlowingRewardsNavChip height (34.dp)
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable { showStreakGuideDialog = true }
+                        .testTag("flame_streak_chip")
                 ) {
-                    Surface(
-                        onClick = { showStreakGuideDialog = true },
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color(0x33FF5722),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.2.dp,
-                            androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                listOf(Color(0xFFFF9800), Color(0xFFFF5722))
-                            )
-                        ),
-                        shadowElevation = 4.dp,
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .testTag("flame_streak_chip")
+                    FireParticleContainer(
+                        streakDays = uiState.streakDays
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0x33FF5722),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.2.dp,
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    listOf(Color(0xFFFF9800), Color(0xFFFF5722))
+                                )
+                            ),
+                            shadowElevation = 4.dp,
+                            modifier = Modifier.height(34.dp)
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0x33FF5722))
+                            Row(
+                                modifier = Modifier.padding(horizontal = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = if (isArabic) "اضغط لشرح كيفية الحصول على السترايك" else "Tap to learn how to earn streaks",
-                                    tint = Color(0xFFFF7043),
-                                    modifier = Modifier.size(16.dp)
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0x33FF5722))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalFireDepartment,
+                                        contentDescription = if (isArabic) "اضغط لشرح كيفية الحصول على السترايك" else "Tap to learn how to earn streaks",
+                                        tint = Color(0xFFFF7043),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${uiState.streakDays}",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFFFE0B2),
+                                    fontSize = 13.sp
                                 )
                             }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "${uiState.streakDays}",
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFFFFE0B2),
-                                fontSize = 14.sp
-                            )
                         }
                     }
                 }
@@ -594,29 +600,24 @@ fun HabitPulseDashboardScreen(
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = if (isArabic) "تأثير نهاية اليوم على الستريك والمخزن" else "End-of-day mechanics & buffer",
+                                text = if (isArabic) "يتم التقييم تلقائياً عند نهاية كل يوم" else "Evaluates automatically at day's end",
                                 fontSize = 10.sp,
                                 color = glassColors.onSurfaceVariantColor
                             )
                         }
                     }
 
-                    Button(
-                        onClick = { viewModel.triggerDailyEvaluation() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = glassColors.accentColor,
-                            contentColor = Color.Black
-                        ),
+                    Surface(
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .height(32.dp)
-                            .testTag("evaluate_day_btn"),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        color = glassColors.accentColor.copy(alpha = 0.14f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, glassColors.accentColor.copy(alpha = 0.4f))
                     ) {
                         Text(
-                            text = if (isArabic) "تقييم اليوم" else "Evaluate",
+                            text = if (isArabic) "تلقائي ✓" else "Auto ✓",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            fontWeight = FontWeight.Bold,
+                            color = glassColors.accentColor,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
                 }

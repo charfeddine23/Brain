@@ -146,6 +146,7 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     when (event) {
                         Lifecycle.Event.ON_START -> {
+                            viewModel.checkAndRunAutoDailyRolloverIfNeeded()
                             viewModel.checkForUpdatesOnAppEnter()
                         }
                         Lifecycle.Event.ON_RESUME -> {

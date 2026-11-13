@@ -204,6 +204,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             streakDays = streak,
             isEndOfDayEvaluation = false
         )
+        checkAndRunAutoDailyRolloverIfNeeded()
     }
 
     /**
@@ -1104,6 +1105,45 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             isEndOfDayEvaluation = true,
             dailyOutcome = result
         )
+    }
+
+    /**
+     * Automatically evaluates the previous day at day rollover so no manual Evaluate button is required.
+     */
+    fun checkAndRunAutoDailyRolloverIfNeeded() {
+        val today = repository.getTodayKey()
+        val lastActive = repository.getLastActiveDate()
+        if (lastActive.isBlank()) {
+            repository.setLastActiveDate(today)
+            return
+        }
+        if (lastActive == today) return
+
+        // Evaluate the completed day using persisted thresholds from that day
+        triggerDailyEvaluation()
+
+        // Advance date marker and start the new day with fresh daily counters & 1000-pt buffer
+        repository.setLastActiveDate(today)
+        repository.setDailyBreachesCount(0)
+        repository.setDailyBufferRemaining(HabitPulseEngine.DAILY_BUFFER_POOL_SIZE)
+
+        val currentLevel = _uiState.value.brainLevel
+        val resetThresholds = _uiState.value.thresholds.map {
+            it.copy(currentMinutes = 0, currentLaunches = 0)
+        }
+        repository.saveAppThresholds(resetThresholds)
+
+        val freshDailyQuests = HabitPulseEngine.generateDailyQuests(currentLevel)
+        _uiState.update {
+            it.copy(
+                thresholds = resetThresholds,
+                dailyBreachesCount = 0,
+                isEggBlockedToday = false,
+                dailyBufferPool = HabitPulseEngine.DAILY_BUFFER_POOL_SIZE,
+                dailyQuests = freshDailyQuests,
+                isDailyEggAvailable = false
+            )
+        }
     }
 
     fun dismissDailyOutcome() {
