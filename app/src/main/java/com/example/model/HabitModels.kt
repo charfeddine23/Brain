@@ -22,23 +22,21 @@ data class AppThreshold(
         get() = !isImmune && maxMinutes > 0 && currentMinutes >= maxMinutes
 
     val isLaunchBreached: Boolean
-        get() = !isImmune && maxLaunches > 0 && currentLaunches >= maxLaunches
+        get() = false // App open count never causes breaches or affects any game outcome
 
     val isBreached: Boolean
-        get() = !isImmune && (isMinuteBreached || isLaunchBreached)
+        get() = !isImmune && isMinuteBreached
 
     val isWarning: Boolean
         get() = !isImmune && !isBreached && (
-            (maxMinutes > 0 && currentMinutes >= (maxMinutes * 0.8f).toInt()) ||
-            (maxLaunches > 0 && currentLaunches >= (maxLaunches * 0.8f).toInt())
+            maxMinutes > 0 && currentMinutes >= (maxMinutes * 0.8f).toInt()
         )
 
     val usageProgress: Float
         get() {
             if (isImmune) return 0f
             val minProg = if (maxMinutes > 0) currentMinutes.toFloat() / maxMinutes else 0f
-            val launchProg = if (maxLaunches > 0) currentLaunches.toFloat() / maxLaunches else 0f
-            return maxOf(minProg, launchProg).coerceIn(0f, 1f)
+            return minProg.coerceIn(0f, 1f)
         }
 }
 

@@ -5,7 +5,7 @@ package com.example.model
  * - Computes real-time cumulative Brain Rot Percentage (0% to 100%)
  * - Factors:
  *   1. Time Overuse: (minutes over threshold) * category.rotWeight * 0.5%
- *   2. Micro-Checking Launch Excess: (launches over threshold) * category.rotWeight * 0.8%
+ *   2. App Open Count: Ignored (opening apps does not affect rot or penalties)
  *   3. Unprotected Breaches:
  *      - 1st breach: +20% Rot surge & -10 Flame points
  *      - 2nd breach: +30% Rot surge & -20 Flame points
@@ -21,7 +21,7 @@ package com.example.model
 object BrainRotCalculator {
 
     /**
-     * Calculates the real-time rot contributed by active app usage.
+     * Calculates the real-time rot contributed by active app usage (time overuse only).
      */
     fun calculateUsageRot(thresholds: List<AppThreshold>): Float {
         var totalRot = 0.0f
@@ -30,18 +30,11 @@ object BrainRotCalculator {
             val category = AppCategory.fromString(threshold.category)
             if (category.isImmune) continue
 
-            // 1. Time Overuse excess
+            // Time Overuse excess only (launch count has zero impact)
             if (threshold.maxMinutes > 0 && threshold.currentMinutes > threshold.maxMinutes) {
                 val excessMinutes = threshold.currentMinutes - threshold.maxMinutes
                 val timeRot = excessMinutes * category.rotWeight * 0.5f
                 totalRot += timeRot
-            }
-
-            // 2. Micro-checking launch excess
-            if (threshold.maxLaunches > 0 && threshold.currentLaunches > threshold.maxLaunches) {
-                val excessLaunches = threshold.currentLaunches - threshold.maxLaunches
-                val launchRot = excessLaunches * category.rotWeight * 0.8f
-                totalRot += launchRot
             }
         }
 

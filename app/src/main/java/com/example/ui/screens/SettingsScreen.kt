@@ -26,8 +26,10 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -249,8 +251,8 @@ fun SettingsScreen(
                             if (isAr) "إذن PACKAGE_USAGE_STATS مفعّل وجاهز لمراقبة أحداث ACTIVITY_RESUMED بدقة."
                             else "PACKAGE_USAGE_STATS permission is active, monitoring ACTIVITY_RESUMED events."
                         } else {
-                            if (isAr) "الإذن غير ممنوح. يرجى منحه لتفعيل تتبع استخدام التطبيقات."
-                            else "Permission not granted. Please grant to track real screen time and launches."
+                            if (isAr) "الإذن غير ممنوح. يرجى منحه لتفعيل تتبع وقت استخدام التطبيقات بدقة."
+                            else "Permission not granted. Please grant to track real screen time usage."
                         },
                         fontSize = 12.sp,
                         color = glassColors.onSurfaceVariantColor
@@ -323,6 +325,125 @@ fun SettingsScreen(
                             text = if (isAr) "فتح الدليل التفاعلي 🧠" else "Open Interactive Tutorial 🧠",
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+            }
+        }
+
+        // Section: In-App Auto Update (https://github.com/charfeddine23/Brain)
+        item {
+            val available = uiState.availableUpdate
+            LiquidGlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("app_update_card")
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.SystemUpdate,
+                                contentDescription = null,
+                                tint = if (available != null) SafeGreen else glassColors.accentColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = if (isAr) "التحديث التلقائي للتطبيق" else "In-App Auto Updater",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = glassColors.onSurfaceColor
+                                )
+                                Text(
+                                    text = if (isAr) "الإصدار المثبت: v${uiState.currentAppVersion}"
+                                           else "Installed Version: v${uiState.currentAppVersion}",
+                                    fontSize = 11.sp,
+                                    color = glassColors.onSurfaceVariantColor
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = if (isAr) "مستودع التحديثات المباشر: github.com/charfeddine23/Brain"
+                               else "Update Source: github.com/charfeddine23/Brain",
+                        fontSize = 11.sp,
+                        color = glassColors.onSurfaceVariantColor
+                    )
+
+                    if (!uiState.updateStatusMessage.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = uiState.updateStatusMessage,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (available != null) SafeGreen else glassColors.accentColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.checkForUpdates(isManual = true) },
+                            enabled = !uiState.isCheckingUpdate && !uiState.isDownloadingUpdate,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = glassColors.accentColor.copy(alpha = 0.2f),
+                                contentColor = glassColors.accentColor
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("check_updates_btn")
+                        ) {
+                            if (uiState.isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = glassColors.accentColor
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = if (uiState.isCheckingUpdate) {
+                                    if (isAr) "جاري الفحص..." else "Checking..."
+                                } else {
+                                    if (isAr) "فحص التحديثات" else "Check Updates"
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (available != null) {
+                            Button(
+                                onClick = { viewModel.openUpdateDialog() },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SafeGreen,
+                                    contentColor = Color.Black
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("open_update_dialog_btn")
+                            ) {
+                                Text(
+                                    text = if (isAr) "تحديث إلى v${available.versionName}" else "Update v${available.versionName}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
                     }
                 }
             }

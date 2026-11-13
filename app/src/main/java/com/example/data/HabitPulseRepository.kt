@@ -228,6 +228,7 @@ class HabitPulseRepository(context: Context) {
     }
 
     // --- Inventory Items & Potions ---
+    @Synchronized
     fun getInventory(): Map<com.example.model.InventoryItemType, Int> {
         val map = mutableMapOf<com.example.model.InventoryItemType, Int>()
         for (item in com.example.model.InventoryItemType.entries) {
@@ -237,15 +238,18 @@ class HabitPulseRepository(context: Context) {
         return map
     }
 
+    @Synchronized
     fun setItemCount(type: com.example.model.InventoryItemType, count: Int) {
         prefs.edit().putInt("item_${type.id}", count.coerceAtLeast(0)).apply()
     }
 
+    @Synchronized
     fun addItem(type: com.example.model.InventoryItemType, amount: Int = 1) {
         val current = prefs.getInt("item_${type.id}", 0)
         prefs.edit().putInt("item_${type.id}", (current + amount).coerceAtLeast(0)).apply()
     }
 
+    @Synchronized
     fun consumeItem(type: com.example.model.InventoryItemType): Boolean {
         val current = prefs.getInt("item_${type.id}", 0)
         return if (current > 0) {

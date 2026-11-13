@@ -95,7 +95,6 @@ fun AppLimitsScreen(
             .distinctBy { it.packageName }
             .sortedWith(
                 compareByDescending<AppThreshold> { it.currentMinutes }
-                    .thenByDescending { it.currentLaunches }
                     .thenBy { it.appName.lowercase() }
             )
     }
@@ -125,7 +124,7 @@ fun AppLimitsScreen(
                         color = glassColors.onSurfaceColor
                     )
                     Text(
-                        text = if (isAr) "استهلاك اليوم: ${formatHoursMinutes(totalMinsUsed, isAr)} • مستوى $uiState.brainLevel"
+                        text = if (isAr) "استهلاك اليوم: ${formatHoursMinutes(totalMinsUsed, isAr)} • مستوى ${uiState.brainLevel}"
                                else "Today's Total: ${formatHoursMinutes(totalMinsUsed, isAr)} • Level ${uiState.brainLevel}",
                         fontSize = 11.sp,
                         color = glassColors.onSurfaceVariantColor
@@ -406,21 +405,12 @@ fun SleekDynamicAppCard(
                             color = Color.White,
                             maxLines = 1
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = if (isArabic) category.titleAr else category.titleEn,
-                                fontSize = 10.sp,
-                                color = glassColors.onSurfaceVariantColor,
-                                maxLines = 1
-                            )
-                            if (threshold.currentLaunches > 0) {
-                                Text(
-                                    text = " • ${threshold.currentLaunches} ${if (isArabic) "فتح" else "opens"}",
-                                    fontSize = 9.sp,
-                                    color = Color.White.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
+                        Text(
+                            text = if (isArabic) category.titleAr else category.titleEn,
+                            fontSize = 10.sp,
+                            color = glassColors.onSurfaceVariantColor,
+                            maxLines = 1
+                        )
                     }
                 }
 

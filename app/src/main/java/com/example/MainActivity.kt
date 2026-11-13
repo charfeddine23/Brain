@@ -62,7 +62,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.AppUpdateDialog
 import com.example.ui.components.TutorialOverlay
 import com.example.ui.screens.AppLimitsScreen
 import com.example.ui.screens.BrainClinicScreen
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         viewModel.checkPermission()
+                        viewModel.retryPendingInstallIfPermitted()
                     }
                 }
                 lifecycleOwner.lifecycle.addObserver(observer)
@@ -249,6 +252,25 @@ fun HabitPulseApp(
                 onSelectStep = { viewModel.setTutorialStep(it) },
                 onDismiss = { viewModel.dismissTutorial() },
                 onComplete = { viewModel.completeTutorial() }
+            )
+        }
+
+        // In-App GitHub Auto-Update Dialog (https://github.com/charfeddine23/Brain)
+        val pendingUpdate = uiState.availableUpdate
+        if (uiState.isUpdateDialogVisible && pendingUpdate != null) {
+            val context = LocalContext.current
+            AppUpdateDialog(
+                currentVersion = uiState.currentAppVersion,
+                updateInfo = pendingUpdate,
+                isDownloading = uiState.isDownloadingUpdate,
+                downloadProgress = uiState.updateDownloadProgress,
+                needsInstallPermission = uiState.needsInstallPermission,
+                errorMessage = uiState.updateErrorMessage,
+                isArabic = uiState.isArabic,
+                onStartDownloadAndInstall = { viewModel.startUpdateDownloadAndInstall() },
+                onOpenInstallPermission = { context.startActivity(viewModel.getInstallPermissionIntent()) },
+                onOpenReleasesBrowser = { context.startActivity(viewModel.getReleasesBrowserIntent()) },
+                onDismiss = { viewModel.dismissUpdateDialog() }
             )
         }
     }

@@ -196,12 +196,47 @@ class ExampleUnitTest {
         val dropDay5 = HabitPulseEngine.rollStreakMilestoneReward(5)
         assertTrue(InventoryItemType.entries.contains(dropDay5))
 
-        val boxLoot = HabitPulseEngine.openMysteryBoxLoot()
-        assertTrue(InventoryItemType.entries.contains(boxLoot))
+        repeat(200) {
+            val boxLoot = HabitPulseEngine.openMysteryBoxLoot()
+            assertTrue(InventoryItemType.entries.contains(boxLoot))
+            assertFalse(boxLoot == InventoryItemType.MYSTERY_BOX)
+        }
     }
 
     @Test
     fun `tutorial overlay mechanics count and steps validation`() {
         assertEquals(7, com.example.ui.components.TUTORIAL_TOTAL_STEPS)
+    }
+
+    @Test
+    fun `app open count never triggers breach, warning, progress, or brain rot`() {
+        val highOpensLowTime = AppThreshold(
+            packageName = "com.instagram.android",
+            appName = "Instagram",
+            maxMinutes = 60,
+            maxLaunches = 5,
+            currentMinutes = 10,
+            currentLaunches = 999,
+            category = AppCategory.SOCIAL_MEDIA.name
+        )
+
+        assertFalse(highOpensLowTime.isLaunchBreached)
+        assertFalse(highOpensLowTime.isBreached)
+        assertFalse(highOpensLowTime.isWarning)
+        assertEquals(10f / 60f, highOpensLowTime.usageProgress, 0.001f)
+
+        val rot = com.example.model.BrainRotCalculator.calculateUsageRot(listOf(highOpensLowTime))
+        assertEquals(0f, rot, 0.001f)
+    }
+
+    @Test
+    fun `github updater version parsing and comparison handles Brain_v1_x_x releases`() {
+        assertEquals("1.15.2", com.example.data.AppUpdaterManager.extractCleanVersion("v1.15.2"))
+        assertEquals("1.15.2", com.example.data.AppUpdaterManager.extractCleanVersion("", "Brain.v1.15.2.apk"))
+
+        assertTrue(com.example.data.AppUpdaterManager.isRemoteVersionNewer("1.0.0", "1.0.1"))
+        assertTrue(com.example.data.AppUpdaterManager.isRemoteVersionNewer("1.9.5", "1.10.0"))
+        assertFalse(com.example.data.AppUpdaterManager.isRemoteVersionNewer("1.15.2", "1.15.2"))
+        assertFalse(com.example.data.AppUpdaterManager.isRemoteVersionNewer("1.15.2", "1.14.9"))
     }
 }

@@ -392,13 +392,13 @@ fun MonitoredAppCard(
 
                 Text(
                     text = if (isArabic) {
-                        "الفتح: ${threshold.currentLaunches} / ${threshold.maxLaunches} مرة"
+                        "مرات الفتح: لا تؤثر ✓"
                     } else {
-                        "Opens: ${threshold.currentLaunches} / ${threshold.maxLaunches} launches"
+                        "Opens: No Impact ✓"
                     },
-                    fontSize = 12.sp,
-                    color = if (threshold.isLaunchBreached) AlertRed else glassColors.onSurfaceColor,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 11.sp,
+                    color = glassColors.onSurfaceVariantColor,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
