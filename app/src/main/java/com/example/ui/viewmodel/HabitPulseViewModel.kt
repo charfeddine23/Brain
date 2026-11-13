@@ -199,6 +199,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 tutorialCurrentStep = 0
             )
         }
+        evaluateQuestProgress(
+            thresholds = shrinkAdjustedThresholds,
+            streakDays = streak,
+            isEndOfDayEvaluation = false
+        )
     }
 
     /**
@@ -332,6 +337,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                             )
                         }
                         checkThresholdBreaches(updatedList)
+                        evaluateQuestProgress(
+                            thresholds = updatedList,
+                            streakDays = _uiState.value.streakDays,
+                            isEndOfDayEvaluation = false
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -552,9 +562,8 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
 
         when (itemType) {
             InventoryItemType.DAILY_QUEST_SKIP_KEY -> {
-                val quests = _uiState.value.dailyQuests.toMutableList()
-                val idx = quests.indexOfFirst { !it.isCompleted }
-                if (idx < 0) {
+                val firstIncomplete = _uiState.value.dailyQuests.firstOrNull { !it.isCompleted }
+                if (firstIncomplete == null) {
                     _uiState.update {
                         it.copy(
                             itemEventMessage = if (isAr) "جميع المهام اليومية مكتملة بالفعل! احتفظ بالمفتاح للغد." else "All daily quests are already completed! Save your key."
@@ -562,25 +571,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                     }
                     return
                 }
-                if (!repository.consumeItem(itemType)) return
-                val updatedInv = repository.getInventory()
-                quests[idx] = quests[idx].copy(isCompleted = true, currentProgress = quests[idx].targetProgress)
-                addXp(quests[idx].xpReward, "Daily Quest Skip")
-                val allDailyDone = quests.all { it.isCompleted }
-                _uiState.update {
-                    it.copy(
-                        inventory = updatedInv,
-                        shieldCount = computeTotalShields(updatedInv),
-                        dailyQuests = quests,
-                        isDailyEggAvailable = allDailyDone,
-                        itemEventMessage = if (isAr) "🗝️ تم استخدام مفتاح التخطي: اكتملت المهمة اليومية (+${quests[idx].xpReward} XP)!" else "🗝️ Daily Quest Key used: Auto-completed quest (+${quests[idx].xpReward} XP)!"
-                    )
-                }
+                skipQuestWithKey(firstIncomplete.id, isWeekly = false)
             }
             InventoryItemType.WEEKLY_QUEST_SKIP_KEY -> {
-                val quests = _uiState.value.weeklyQuests.toMutableList()
-                val idx = quests.indexOfFirst { !it.isCompleted }
-                if (idx < 0) {
+                val firstIncomplete = _uiState.value.weeklyQuests.firstOrNull { !it.isCompleted }
+                if (firstIncomplete == null) {
                     _uiState.update {
                         it.copy(
                             itemEventMessage = if (isAr) "جميع المهام الأسبوعية مكتملة بالفعل! احتفظ بالمفتاح للأسبوع القادم." else "All weekly quests are already completed! Save your key."
@@ -588,20 +583,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                     }
                     return
                 }
-                if (!repository.consumeItem(itemType)) return
-                val updatedInv = repository.getInventory()
-                quests[idx] = quests[idx].copy(isCompleted = true, currentProgress = quests[idx].targetProgress)
-                addXp(quests[idx].xpReward, "Weekly Quest Skip")
-                val allWeeklyDone = quests.all { it.isCompleted }
-                _uiState.update {
-                    it.copy(
-                        inventory = updatedInv,
-                        shieldCount = computeTotalShields(updatedInv),
-                        weeklyQuests = quests,
-                        isWeeklyEggAvailable = allWeeklyDone,
-                        itemEventMessage = if (isAr) "🔑 تم استخدام مفتاح التخطي الأسبوعي: اكتملت المهمة الصعبة (+${quests[idx].xpReward} XP)!" else "🔑 Weekly Quest Key used: Auto-completed hardcore quest (+${quests[idx].xpReward} XP)!"
-                    )
-                }
+                skipQuestWithKey(firstIncomplete.id, isWeekly = true)
             }
             InventoryItemType.BRAIN_HEALING_POTION -> {
                 if (!repository.consumeItem(itemType)) return
@@ -623,8 +605,14 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 val updatedInv = repository.getInventory()
                 elevateBrainLevelByOne()
                 healBrainRot(100f)
-                val completedDaily = _uiState.value.dailyQuests.map { it.copy(isCompleted = true, currentProgress = it.targetProgress) }
-                val completedWeekly = _uiState.value.weeklyQuests.map { it.copy(isCompleted = true, currentProgress = it.targetProgress) }
+                val completedDaily = _uiState.value.dailyQuests.map {
+                    repository.markDailyQuestCompleted(it.id)
+                    it.copy(isCompleted = true, currentProgress = it.targetProgress)
+                }
+                val completedWeekly = _uiState.value.weeklyQuests.map {
+                    repository.markWeeklyQuestCompleted(it.id)
+                    it.copy(isCompleted = true, currentProgress = it.targetProgress)
+                }
                 _uiState.update {
                     it.copy(
                         inventory = updatedInv,
@@ -758,25 +746,205 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun completeQuestManually(questId: String, isWeekly: Boolean) {
+    /**
+     * Skips a specific daily or weekly quest ONLY when the player owns and spends its dedicated Skip Key.
+     * Manual tap-to-complete without a key is strictly disallowed.
+     */
+    fun skipQuestWithKey(questId: String, isWeekly: Boolean) {
+        val isAr = _uiState.value.isArabic
         if (isWeekly) {
-            val list = _uiState.value.weeklyQuests.toMutableList()
-            val idx = list.indexOfFirst { it.id == questId }
-            if (idx >= 0 && !list[idx].isCompleted) {
-                list[idx] = list[idx].copy(isCompleted = true, currentProgress = list[idx].targetProgress)
-                addXp(list[idx].xpReward, "Weekly Quest Complete")
-                val allDone = list.all { it.isCompleted }
-                _uiState.update { it.copy(weeklyQuests = list, isWeeklyEggAvailable = allDone) }
+            val quests = _uiState.value.weeklyQuests.toMutableList()
+            val idx = quests.indexOfFirst { it.id == questId && !it.isCompleted }
+            if (idx < 0) return
+            if (!repository.consumeItem(InventoryItemType.WEEKLY_QUEST_SKIP_KEY)) return
+
+            val updatedInv = repository.getInventory()
+            quests[idx] = quests[idx].copy(isCompleted = true, currentProgress = quests[idx].targetProgress)
+            repository.markWeeklyQuestCompleted(questId)
+            addXp(quests[idx].xpReward, "Weekly Quest Skip Key")
+            val allDone = quests.all { it.isCompleted }
+            _uiState.update {
+                it.copy(
+                    inventory = updatedInv,
+                    shieldCount = computeTotalShields(updatedInv),
+                    weeklyQuests = quests,
+                    isWeeklyEggAvailable = allDone,
+                    itemEventMessage = if (isAr) {
+                        "🔑 تم استخدام مفتاح التخطي الأسبوعي: اكتملت المهمة (+${quests[idx].xpReward} XP)!"
+                    } else {
+                        "🔑 Weekly Skip Key used: Quest completed (+${quests[idx].xpReward} XP)!"
+                    }
+                )
             }
         } else {
-            val list = _uiState.value.dailyQuests.toMutableList()
-            val idx = list.indexOfFirst { it.id == questId }
-            if (idx >= 0 && !list[idx].isCompleted) {
-                list[idx] = list[idx].copy(isCompleted = true, currentProgress = list[idx].targetProgress)
-                addXp(list[idx].xpReward, "Daily Quest Complete")
-                val allDone = list.all { it.isCompleted }
-                _uiState.update { it.copy(dailyQuests = list, isDailyEggAvailable = allDone) }
+            val quests = _uiState.value.dailyQuests.toMutableList()
+            val idx = quests.indexOfFirst { it.id == questId && !it.isCompleted }
+            if (idx < 0) return
+            if (!repository.consumeItem(InventoryItemType.DAILY_QUEST_SKIP_KEY)) return
+
+            val updatedInv = repository.getInventory()
+            quests[idx] = quests[idx].copy(isCompleted = true, currentProgress = quests[idx].targetProgress)
+            repository.markDailyQuestCompleted(questId)
+            addXp(quests[idx].xpReward, "Daily Quest Skip Key")
+            val allDone = quests.all { it.isCompleted }
+            _uiState.update {
+                it.copy(
+                    inventory = updatedInv,
+                    shieldCount = computeTotalShields(updatedInv),
+                    dailyQuests = quests,
+                    isDailyEggAvailable = allDone,
+                    itemEventMessage = if (isAr) {
+                        "🗝️ تم استخدام مفتاح التخطي اليومي: اكتملت المهمة (+${quests[idx].xpReward} XP)!"
+                    } else {
+                        "🗝️ Daily Skip Key used: Quest completed (+${quests[idx].xpReward} XP)!"
+                    }
+                )
             }
+        }
+    }
+
+    /**
+     * Automatically evaluates real user usage, daily outcomes, and streak counters to update
+     * daily and weekly quest progress without allowing manual click-to-complete shortcuts.
+     */
+    private fun evaluateQuestProgress(
+        thresholds: List<AppThreshold>,
+        streakDays: Int,
+        isEndOfDayEvaluation: Boolean,
+        dailyOutcome: com.example.model.DailyEvaluationResult? = null
+    ) {
+        val state = _uiState.value
+        val isAr = state.isArabic
+        val currentLevel = state.brainLevel
+        val completedDailyIds = repository.getCompletedDailyQuestIds()
+        val completedWeeklyIds = repository.getCompletedWeeklyQuestIds()
+
+        // Update weekly counters only on genuine end-of-day evaluations
+        if (isEndOfDayEvaluation && dailyOutcome != null) {
+            val socialBreached = thresholds.any { it.appCategory == AppCategory.SOCIAL_MEDIA && it.isBreached }
+            if (!socialBreached) {
+                repository.setWeeklyCleanSocialDays(repository.getWeeklyCleanSocialDays() + 1)
+            }
+            if (dailyOutcome.levelsGainedOrLost >= 0) {
+                repository.setWeeklyNoDemotionDays(repository.getWeeklyNoDemotionDays() + 1)
+            } else {
+                repository.setWeeklyNoDemotionDays(0)
+            }
+        }
+
+        val socialMinutes = thresholds.filter { it.appCategory == AppCategory.SOCIAL_MEDIA }.sumOf { it.currentMinutes }
+        val targetSocialLimit = HabitPulseEngine.calculateDynamicTimeLimit(AppCategory.SOCIAL_MEDIA, currentLevel)
+        val focusMinutes = thresholds.filter { it.appCategory == AppCategory.PRODUCTIVITY_TOOLS }.sumOf { it.currentMinutes }
+        val cleanSocialDays = repository.getWeeklyCleanSocialDays()
+        val noDemotionDays = repository.getWeeklyNoDemotionDays()
+
+        var totalNewQuestXp = 0L
+        var newlyCompletedCount = 0
+
+        val baseDaily = if (state.dailyQuests.isNotEmpty()) state.dailyQuests else HabitPulseEngine.generateDailyQuests(currentLevel)
+        val updatedDaily = baseDaily.map { quest ->
+            if (quest.id in completedDailyIds || quest.isCompleted) {
+                quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+            } else {
+                when (quest.id) {
+                    "daily_social_limit" -> {
+                        if (isEndOfDayEvaluation && socialMinutes < targetSocialLimit) {
+                            repository.markDailyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = 0, isCompleted = false)
+                        }
+                    }
+                    "daily_deep_work" -> {
+                        val clamped = focusMinutes.coerceAtMost(quest.targetProgress)
+                        if (focusMinutes >= quest.targetProgress) {
+                            repository.markDailyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = clamped, isCompleted = false)
+                        }
+                    }
+                    "daily_zero_breaches" -> {
+                        if (isEndOfDayEvaluation && dailyOutcome?.outcomeType == com.example.model.DailyOutcomeType.CLEAN_SWEEP) {
+                            repository.markDailyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = 0, isCompleted = false)
+                        }
+                    }
+                    else -> quest
+                }
+            }
+        }
+
+        val baseWeekly = if (state.weeklyQuests.isNotEmpty()) state.weeklyQuests else HabitPulseEngine.generateWeeklyQuests(currentLevel)
+        val updatedWeekly = baseWeekly.map { quest ->
+            if (quest.id in completedWeeklyIds || quest.isCompleted) {
+                quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+            } else {
+                when (quest.id) {
+                    "weekly_5day_streak" -> {
+                        val clamped = streakDays.coerceAtMost(quest.targetProgress)
+                        if (streakDays >= quest.targetProgress) {
+                            repository.markWeeklyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = clamped, isCompleted = false)
+                        }
+                    }
+                    "weekly_social_detox" -> {
+                        val clamped = cleanSocialDays.coerceAtMost(quest.targetProgress)
+                        if (cleanSocialDays >= quest.targetProgress) {
+                            repository.markWeeklyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = clamped, isCompleted = false)
+                        }
+                    }
+                    "weekly_aegis_master" -> {
+                        val clamped = noDemotionDays.coerceAtMost(quest.targetProgress)
+                        if (noDemotionDays >= quest.targetProgress) {
+                            repository.markWeeklyQuestCompleted(quest.id)
+                            totalNewQuestXp += quest.xpReward
+                            newlyCompletedCount++
+                            quest.copy(isCompleted = true, currentProgress = quest.targetProgress)
+                        } else {
+                            quest.copy(currentProgress = clamped, isCompleted = false)
+                        }
+                    }
+                    else -> quest
+                }
+            }
+        }
+
+        if (totalNewQuestXp > 0L) {
+            addXp(totalNewQuestXp, "Real Quest Auto-Completion")
+        }
+
+        _uiState.update { current ->
+            val completionBanner = if (newlyCompletedCount > 0 && !isEndOfDayEvaluation) {
+                if (isAr) "✅ تم إنجاز $newlyCompletedCount مهمة تلقائياً (+$totalNewQuestXp XP)!"
+                else "✅ $newlyCompletedCount quest(s) completed automatically (+$totalNewQuestXp XP)!"
+            } else {
+                current.itemEventMessage
+            }
+            current.copy(
+                dailyQuests = updatedDaily,
+                weeklyQuests = updatedWeekly,
+                isDailyEggAvailable = updatedDaily.all { it.isCompleted },
+                isWeeklyEggAvailable = updatedWeekly.all { it.isCompleted },
+                itemEventMessage = completionBanner
+            )
         }
     }
 
@@ -929,6 +1097,13 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         } else if (result.levelsGainedOrLost > 0) {
             scheduleHealingReset()
         }
+
+        evaluateQuestProgress(
+            thresholds = adjustedThresholds,
+            streakDays = newStreak,
+            isEndOfDayEvaluation = true,
+            dailyOutcome = result
+        )
     }
 
     fun dismissDailyOutcome() {
@@ -948,6 +1123,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 nextMilestoneTarget = nextMilestone
             )
         }
+        evaluateQuestProgress(
+            thresholds = _uiState.value.thresholds,
+            streakDays = newStreak,
+            isEndOfDayEvaluation = false
+        )
     }
 
     fun simulateTimeUsage(packageName: String, minutes: Int) {
@@ -962,6 +1142,11 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             if (updated.isBreached && !old.isBreached) {
                 executeBreachPenalty(updated)
             }
+            evaluateQuestProgress(
+                thresholds = currentList,
+                streakDays = _uiState.value.streakDays,
+                isEndOfDayEvaluation = false
+            )
         }
     }
 
@@ -1167,6 +1352,10 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
                 activeShieldEvent = null,
                 isMilestoneRewardClaimable = false,
                 lastClaimedMilestoneStreak = 0,
+                dailyQuests = HabitPulseEngine.generateDailyQuests(newLevel),
+                weeklyQuests = HabitPulseEngine.generateWeeklyQuests(newLevel),
+                isDailyEggAvailable = false,
+                isWeeklyEggAvailable = false,
                 itemEventMessage = if (isAr) "تم تصفير كافة المستويات والجوائز والتقدم بنجاح! لتبدأ اللعبة الحقيقية 🧠✨" else "All levels, rewards & items reset to Level 1 (0 XP) successfully! 🧠✨"
             )
         }

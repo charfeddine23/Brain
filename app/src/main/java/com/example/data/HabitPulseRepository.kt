@@ -10,6 +10,7 @@ import com.example.model.ThemeType
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -21,6 +22,11 @@ class HabitPulseRepository(context: Context) {
     private val dateFormat = SimpleDateFormat("yyyyMMdd", Locale.US)
 
     fun getTodayKey(): String = dateFormat.format(Date())
+
+    fun getWeekKey(): String {
+        val cal = Calendar.getInstance()
+        return "${cal.get(Calendar.YEAR)}_w${cal.get(Calendar.WEEK_OF_YEAR)}"
+    }
 
     // --- Flame & Strike ---
     fun getFlameScore(): Int = prefs.getInt(KEY_FLAME_SCORE, 100)
@@ -289,6 +295,91 @@ class HabitPulseRepository(context: Context) {
     fun setLastClaimedMilestoneStreak(streak: Int) =
         prefs.edit().putInt(KEY_CLAIMED_MILESTONE, streak).apply()
 
+    // --- Quests Persistence (Auto-tracked & Skip-Key only) ---
+    @Synchronized
+    fun getCompletedDailyQuestIds(): Set<String> {
+        val today = getTodayKey()
+        if (prefs.getString(KEY_DAILY_QUESTS_DATE, "") != today) {
+            return emptySet()
+        }
+        return prefs.getStringSet(KEY_DAILY_QUESTS_DONE, emptySet())?.toSet() ?: emptySet()
+    }
+
+    @Synchronized
+    fun markDailyQuestCompleted(questId: String) {
+        val today = getTodayKey()
+        val existing = if (prefs.getString(KEY_DAILY_QUESTS_DATE, "") == today) {
+            prefs.getStringSet(KEY_DAILY_QUESTS_DONE, emptySet())?.toMutableSet() ?: mutableSetOf()
+        } else {
+            mutableSetOf()
+        }
+        existing.add(questId)
+        prefs.edit()
+            .putString(KEY_DAILY_QUESTS_DATE, today)
+            .putStringSet(KEY_DAILY_QUESTS_DONE, existing)
+            .apply()
+    }
+
+    @Synchronized
+    fun getCompletedWeeklyQuestIds(): Set<String> {
+        val week = getWeekKey()
+        if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") != week) {
+            return emptySet()
+        }
+        return prefs.getStringSet(KEY_WEEKLY_QUESTS_DONE, emptySet())?.toSet() ?: emptySet()
+    }
+
+    @Synchronized
+    fun markWeeklyQuestCompleted(questId: String) {
+        val week = getWeekKey()
+        val existing = if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") == week) {
+            prefs.getStringSet(KEY_WEEKLY_QUESTS_DONE, emptySet())?.toMutableSet() ?: mutableSetOf()
+        } else {
+            mutableSetOf()
+        }
+        existing.add(questId)
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, week)
+            .putStringSet(KEY_WEEKLY_QUESTS_DONE, existing)
+            .apply()
+    }
+
+    @Synchronized
+    fun getWeeklyCleanSocialDays(): Int {
+        val week = getWeekKey()
+        return if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") == week) {
+            prefs.getInt(KEY_WEEKLY_CLEAN_SOCIAL_DAYS, 0).coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+
+    @Synchronized
+    fun setWeeklyCleanSocialDays(days: Int) {
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, getWeekKey())
+            .putInt(KEY_WEEKLY_CLEAN_SOCIAL_DAYS, days.coerceAtLeast(0))
+            .apply()
+    }
+
+    @Synchronized
+    fun getWeeklyNoDemotionDays(): Int {
+        val week = getWeekKey()
+        return if (prefs.getString(KEY_WEEKLY_QUESTS_WEEK, "") == week) {
+            prefs.getInt(KEY_WEEKLY_NO_DEMOTION_DAYS, 0).coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+
+    @Synchronized
+    fun setWeeklyNoDemotionDays(days: Int) {
+        prefs.edit()
+            .putString(KEY_WEEKLY_QUESTS_WEEK, getWeekKey())
+            .putInt(KEY_WEEKLY_NO_DEMOTION_DAYS, days.coerceAtLeast(0))
+            .apply()
+    }
+
     // --- Tutorial ---
     fun hasCompletedTutorial(): Boolean = prefs.getBoolean(KEY_HAS_COMPLETED_TUTORIAL, false)
     fun setTutorialCompleted(completed: Boolean) =
@@ -318,5 +409,11 @@ class HabitPulseRepository(context: Context) {
         private const val KEY_HAS_COMPLETED_TUTORIAL = "has_completed_tutorial"
         private const val KEY_BUFFER_DATE = "daily_buffer_date"
         private const val KEY_DAILY_BUFFER_REMAINING = "daily_buffer_remaining"
+        private const val KEY_DAILY_QUESTS_DATE = "daily_quests_date"
+        private const val KEY_DAILY_QUESTS_DONE = "daily_quests_done"
+        private const val KEY_WEEKLY_QUESTS_WEEK = "weekly_quests_week"
+        private const val KEY_WEEKLY_QUESTS_DONE = "weekly_quests_done"
+        private const val KEY_WEEKLY_CLEAN_SOCIAL_DAYS = "weekly_clean_social_days"
+        private const val KEY_WEEKLY_NO_DEMOTION_DAYS = "weekly_no_demotion_days"
     }
 }

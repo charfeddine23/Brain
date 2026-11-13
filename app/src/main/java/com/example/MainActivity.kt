@@ -220,8 +220,7 @@ fun HabitPulseApp(
                         uiState = uiState,
                         viewModel = viewModel,
                         onNavigateToLimits = { currentTab = NavigationTab.LIMITS },
-                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS },
-                        onNavigateToInventory = { currentTab = NavigationTab.INVENTORY }
+                        onNavigateToRewards = { currentTab = NavigationTab.REWARDS }
                     )
                     NavigationTab.INVENTORY -> InventoryScreen(
                         uiState = uiState,
