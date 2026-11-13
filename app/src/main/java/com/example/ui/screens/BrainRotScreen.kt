@@ -44,7 +44,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.model.LevelSystem
+import com.example.model.HabitPulseEngine
 import com.example.ui.components.DynamicBrainCanvas
 import com.example.ui.components.LiquidGlassCard
 import com.example.ui.theme.AlertRed
@@ -96,7 +96,8 @@ fun BrainRotScreen(
                     color = glassColors.onSurfaceColor
                 )
                 Text(
-                    text = if (isAr) "مراقبة حية للنخر العصبي ونظام الـ 100 مستوى (1M XP)" else "Live canvas neural decay & 100-Level Mastery system (1M XP)",
+                    text = if (isAr) "مراقبة حية للنخر العصبي ونظام الـ 100 مستوى (${HabitPulseEngine.MAX_POINTS} XP)"
+                           else "Live canvas neural decay & 100-Level Mastery system (${HabitPulseEngine.MAX_POINTS} XP)",
                     fontSize = 12.sp,
                     color = glassColors.onSurfaceVariantColor
                 )
@@ -218,7 +219,7 @@ fun BrainRotScreen(
             }
         }
 
-        // 100-Level Achievement System Card (Up to 1,000,000 XP)
+        // 100-Level Achievement System Card (1,000 XP per level up to 99,000 XP)
         item {
             LiquidGlassCard(
                 modifier = Modifier
@@ -241,20 +242,20 @@ fun BrainRotScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = uiState.levelBadge,
+                                    text = uiState.rankBadge,
                                     fontSize = 22.sp
                                 )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "${if (isAr) "المستوى" else "Level"} ${uiState.currentLevel} / ${LevelSystem.MAX_LEVEL}",
+                                    text = "${if (isAr) "المستوى" else "Level"} ${uiState.brainLevel} / ${HabitPulseEngine.MAX_LEVEL}",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = glassColors.onSurfaceColor
                                 )
                                 Text(
-                                    text = uiState.levelTitle,
+                                    text = uiState.rankTitle,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = glassColors.accentColor
@@ -290,7 +291,7 @@ fun BrainRotScreen(
                             color = glassColors.onSurfaceVariantColor
                         )
                         Text(
-                            text = "${(uiState.levelProgress * 100).toInt()}%",
+                            text = "${uiState.pointsInCurrentLevel} / ${HabitPulseEngine.POINTS_PER_LEVEL} XP (${(uiState.levelProgress * 100).toInt()}%)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = glassColors.accentColor
@@ -312,9 +313,10 @@ fun BrainRotScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Dynamic Tier Milestone Cards
+                    // Dynamic Tier Milestone Cards matching HabitPulseEngine ranks
                     Text(
-                        text = if (isAr) "مسار المراتب (100 مستوى حتى 1M XP):" else "Level Rank Path (Up to 1,000,000 XP):",
+                        text = if (isAr) "مسار المراتب العصبية (100 مستوى • 1,000 XP لكل مستوى):"
+                               else "Neural Rank Path (100 Levels • 1,000 XP per Level):",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = glassColors.onSurfaceColor
@@ -324,28 +326,34 @@ fun BrainRotScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         RankTierItem(
+                            badge = "🌫️",
+                            title = if (isAr) "عقل غارق في الضباب (مستوى 1 - 25)" else "The Foggy Mind (Level 1 - 25)",
+                            desc = if (isAr) "بداية التحرر من التشتت الرقمي" else "Initial recovery from digital distraction",
+                            isCurrent = uiState.brainLevel in 1..25
+                        )
+                        RankTierItem(
                             badge = "⚡",
-                            title = if (isAr) "العقل النشط (مستوى 1 - 20)" else "Active Mind (Level 1 - 20)",
-                            desc = if (isAr) "البداية والانضباط الأولي" else "Initial habit discipline",
-                            isCurrent = uiState.currentLevel in 1..20
+                            title = if (isAr) "عقل قيد الاستيقاظ (مستوى 26 - 50)" else "The Awakening Neural (Level 26 - 50)",
+                            desc = if (isAr) "تسارع النبض العصبي وبناء الانضباط" else "Accelerating neural pulse & steady discipline",
+                            isCurrent = uiState.brainLevel in 26..50
                         )
                         RankTierItem(
                             badge = "🛡️",
-                            title = if (isAr) "حارس التركيز (مستوى 21 - 50)" else "Focus Guardian (Level 21 - 50)",
-                            desc = if (isAr) "الاستفادة القصوى من الدروع وتخطي الشاشات" else "Mastering shield defense and screen focus",
-                            isCurrent = uiState.currentLevel in 21..50
+                            title = if (isAr) "العقل الحارس (مستوى 51 - 75)" else "The Guardian Mind (Level 51 - 75)",
+                            desc = if (isAr) "تقليص الحدود اليومية وحماية التركيز" else "Tighter daily limits & resilient focus defense",
+                            isCurrent = uiState.brainLevel in 51..75
                         )
                         RankTierItem(
-                            badge = "⚔️",
-                            title = if (isAr) "الإرادة الحديدية (مستوى 51 - 80)" else "Iron Will (Level 51 - 80)",
-                            desc = if (isAr) "حصانة ضد المشتتات والتعفن الرقمي" else "Immunity against doomscrolling",
-                            isCurrent = uiState.currentLevel in 51..80
+                            badge = "🧬",
+                            title = if (isAr) "الهندسة العصبية (مستوى 76 - 99)" else "The Neural Architect (Level 76 - 99)",
+                            desc = if (isAr) "تحكم شبه مطلق ومناعة ضد الإدمان" else "Near-total mastery & immunity against brain rot",
+                            isCurrent = uiState.brainLevel in 76..99
                         )
                         RankTierItem(
-                            badge = "👑",
-                            title = if (isAr) "العقل السامي (مستوى 81 - 100)" else "Ascended Mind (Level 81 - 100)",
-                            desc = if (isAr) "القمة المطلقة (1,000,000 XP)" else "Ultimate 1,000,000 XP pinnacle",
-                            isCurrent = uiState.currentLevel in 81..100
+                            badge = "🌌",
+                            title = if (isAr) "الوعي المطلق (مستوى 100)" else "The Ascended Singularity (Level 100)",
+                            desc = if (isAr) "القمة الذهبية المطلقة (${HabitPulseEngine.MAX_POINTS} XP)" else "Ultimate golden mastery (${HabitPulseEngine.MAX_POINTS} XP)",
+                            isCurrent = uiState.brainLevel >= HabitPulseEngine.MAX_LEVEL
                         )
                     }
                 }
@@ -365,7 +373,7 @@ fun BrainRotScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAr) "كيف تكسب نقاط الخبرة (XP)؟" else "How to Earn Experience Points (XP)",
+                            text = if (isAr) "كيف تكسب نقاط الخبرة وترفع المستوى؟" else "How to Earn XP & Level Up?",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = glassColors.onSurfaceColor
@@ -376,9 +384,15 @@ fun BrainRotScreen(
 
                     Text(
                         text = if (isAr) {
-                            "• الالتزام اليومي والتطهير: +10,000 XP يومياً\n• مكافأة حفظ الدروع: +2,500 XP لكل درع نشط عند التجاوز\n• فقس بيض التتابع: من +15,000 XP حتى +75,000 XP في بيضة التنين\n• خفض تعفن الدماغ يحمي مكاسبك اليومية من الضياع."
+                            "• كل 1,000 XP ترفع دماغك +1 مستوى تلقائياً (حتى المستوى 100).\n" +
+                                "• الالتزام اليومي بدون تجاوزات: +500 حتى +2,000 XP تصاعدياً.\n" +
+                                "• إنجاز المهام اليومية والأسبوعية: +650 حتى +5,000 XP لكل مهمة.\n" +
+                                "• فقس بيض التتابع والجرعات يمنح مستويات ونقاط خبرة فورية."
                         } else {
-                            "• Daily Adherence & Detox: +10,000 XP daily\n• Shield Preservation Bonus: +2,500 XP per absorbed breach\n• Egg Milestone Hatching: +15,000 to +75,000 XP (Dragon Egg)\n• Keeping Brain Rot low secures your daily multiplier."
+                            "• Every 1,000 XP automatically promotes your brain +1 Level (up to Lvl 100).\n" +
+                                "• Clean Sweep days (0 breaches): +500 up to +2,000 escalating XP.\n" +
+                                "• Daily & Weekly Quests: +650 to +5,000 XP per objective.\n" +
+                                "• Hatching streak eggs & healing potions grant instant levels and XP."
                         },
                         fontSize = 12.sp,
                         color = glassColors.onSurfaceVariantColor,

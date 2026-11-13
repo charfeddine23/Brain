@@ -38,16 +38,16 @@ data class HabitPulseUiState(
     val brainLevel: Int = 1,
     val totalXp: Long = 0L,
     val levelProgress: Float = 0f,
-    val rankTitle: String = "Active Mind",
-    val rankBadge: String = "🌱",
+    val rankTitle: String = "The Foggy Mind",
+    val rankBadge: String = "🌫️",
     val flameScore: Int = 100,
     val streakDays: Int = 0,
     val brainRotPercentage: Float = 0f,
     val isHealingActive: Boolean = false,
     val isGlitchingActive: Boolean = false,
     val currentLevel: Int = 1,
-    val levelTitle: String = "Active Mind",
-    val levelBadge: String = "🌱",
+    val levelTitle: String = "The Foggy Mind",
+    val levelBadge: String = "🌫️",
 
     // Shield Immunity System
     val activeImmunityUntilMillis: Long = 0L,
@@ -173,8 +173,10 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         } else 0
 
         val totalPts = xp.toInt()
-        val ptsInLevel = totalPts % HabitPulseEngine.POINTS_PER_LEVEL
+        val ptsInLevel = if (level >= HabitPulseEngine.MAX_LEVEL) HabitPulseEngine.POINTS_PER_LEVEL else totalPts % HabitPulseEngine.POINTS_PER_LEVEL
         val prog = HabitPulseEngine.calculateLevelProgress(totalPts)
+        val initialTitle = HabitPulseEngine.getRankTitle(level, isAr)
+        val initialBadge = HabitPulseEngine.getRankBadgeEmoji(level)
 
         val dailyQuests = HabitPulseEngine.generateDailyQuests(level)
         val weeklyQuests = HabitPulseEngine.generateWeeklyQuests(level)
@@ -191,13 +193,16 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update {
             it.copy(
                 brainLevel = level,
+                currentLevel = level,
                 totalXp = xp,
                 totalPoints = totalPts,
                 pointsInCurrentLevel = ptsInLevel,
                 levelProgress = prog,
                 dailyBufferPool = repository.getDailyBufferRemaining(),
-                rankTitle = HabitPulseEngine.getRankTitle(level, isAr),
-                rankBadge = HabitPulseEngine.getRankBadgeEmoji(level),
+                rankTitle = initialTitle,
+                rankBadge = initialBadge,
+                levelTitle = initialTitle,
+                levelBadge = initialBadge,
                 flameScore = flame,
                 streakDays = streak,
                 brainRotPercentage = rot,
@@ -545,15 +550,26 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
 
             val title = HabitPulseEngine.getRankTitle(demotedLevel, _uiState.value.isArabic)
             val badge = HabitPulseEngine.getRankBadgeEmoji(demotedLevel)
+            val demotedPts = newXp.toInt()
+            val demotedPtsInLevel = demotedPts % HabitPulseEngine.POINTS_PER_LEVEL
+            val demotedProg = HabitPulseEngine.calculateLevelProgress(demotedPts)
 
             _uiState.update {
+                val adjusted = applyDynamicShrinkingLimits(it.thresholds, demotedLevel)
+                repository.saveAppThresholds(adjusted)
                 it.copy(
                     brainLevel = demotedLevel,
+                    currentLevel = demotedLevel,
                     totalXp = newXp,
-                    totalPoints = newXp.toInt(),
+                    totalPoints = demotedPts,
+                    pointsInCurrentLevel = demotedPtsInLevel,
+                    levelProgress = demotedProg,
                     dailyBufferPool = 0,
                     rankTitle = title,
                     rankBadge = badge,
+                    levelTitle = title,
+                    levelBadge = badge,
+                    thresholds = adjusted,
                     flameScore = newFlame,
                     streakDays = 0,
                     dailyBreachesCount = currentBreaches,
@@ -725,7 +741,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         repository.setTotalXp(targetXp)
 
         val totalPts = targetXp.toInt()
-        val ptsInLevel = totalPts % HabitPulseEngine.POINTS_PER_LEVEL
+        val ptsInLevel = if (nextLevel >= HabitPulseEngine.MAX_LEVEL) HabitPulseEngine.POINTS_PER_LEVEL else totalPts % HabitPulseEngine.POINTS_PER_LEVEL
         val prog = HabitPulseEngine.calculateLevelProgress(totalPts)
         val title = HabitPulseEngine.getRankTitle(nextLevel, _uiState.value.isArabic)
         val badge = HabitPulseEngine.getRankBadgeEmoji(nextLevel)
@@ -735,12 +751,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             repository.saveAppThresholds(adjustedThresholds)
             it.copy(
                 brainLevel = nextLevel,
+                currentLevel = nextLevel,
                 totalXp = targetXp,
                 totalPoints = totalPts,
                 pointsInCurrentLevel = ptsInLevel,
                 levelProgress = prog,
                 rankTitle = title,
                 rankBadge = badge,
+                levelTitle = title,
+                levelBadge = badge,
                 thresholds = adjustedThresholds
             )
         }
@@ -1092,7 +1111,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
 
         val totalPts = newXp.toInt()
         val newLevel = HabitPulseEngine.calculateLevelFromPoints(totalPts)
-        val ptsInLevel = totalPts % HabitPulseEngine.POINTS_PER_LEVEL
+        val ptsInLevel = if (newLevel >= HabitPulseEngine.MAX_LEVEL) HabitPulseEngine.POINTS_PER_LEVEL else totalPts % HabitPulseEngine.POINTS_PER_LEVEL
         val prog = HabitPulseEngine.calculateLevelProgress(totalPts)
         val title = HabitPulseEngine.getRankTitle(newLevel, _uiState.value.isArabic)
         val badge = HabitPulseEngine.getRankBadgeEmoji(newLevel)
@@ -1107,12 +1126,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
             }
             it.copy(
                 brainLevel = newLevel,
+                currentLevel = newLevel,
                 totalXp = newXp,
                 totalPoints = totalPts,
                 pointsInCurrentLevel = ptsInLevel,
                 levelProgress = prog,
                 rankTitle = title,
                 rankBadge = badge,
+                levelTitle = title,
+                levelBadge = badge,
                 thresholds = adjustedThresholds
             )
         }
@@ -1187,7 +1209,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         repository.setStreakDays(newStreak)
 
         val newLevel = HabitPulseEngine.calculateLevelFromPoints(updatedPoints)
-        val ptsInLevel = updatedPoints % HabitPulseEngine.POINTS_PER_LEVEL
+        val ptsInLevel = if (newLevel >= HabitPulseEngine.MAX_LEVEL) HabitPulseEngine.POINTS_PER_LEVEL else updatedPoints % HabitPulseEngine.POINTS_PER_LEVEL
         val prog = HabitPulseEngine.calculateLevelProgress(updatedPoints)
         val title = HabitPulseEngine.getRankTitle(newLevel, _uiState.value.isArabic)
         val badge = HabitPulseEngine.getRankBadgeEmoji(newLevel)
@@ -1205,12 +1227,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update {
             it.copy(
                 brainLevel = newLevel,
+                currentLevel = newLevel,
                 totalXp = updatedPoints.toLong(),
                 totalPoints = updatedPoints,
                 pointsInCurrentLevel = ptsInLevel,
                 levelProgress = prog,
                 rankTitle = title,
                 rankBadge = badge,
+                levelTitle = title,
+                levelBadge = badge,
                 streakDays = newStreak,
                 dailyBufferPool = result.bufferPoolRemaining,
                 thresholds = adjustedThresholds,
@@ -1343,7 +1368,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     fun setLanguage(isArabic: Boolean) {
         repository.setArabic(isArabic)
         val title = HabitPulseEngine.getRankTitle(_uiState.value.brainLevel, isArabic)
-        _uiState.update { it.copy(isArabic = isArabic, rankTitle = title) }
+        _uiState.update { it.copy(isArabic = isArabic, rankTitle = title, levelTitle = title) }
     }
 
     fun hatchEgg(tier: EggTier) {
@@ -1513,12 +1538,15 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
         _uiState.update {
             it.copy(
                 brainLevel = newLevel,
+                currentLevel = newLevel,
                 totalXp = 0L,
                 totalPoints = 0,
                 pointsInCurrentLevel = 0,
                 levelProgress = 0f,
                 rankTitle = title,
                 rankBadge = badge,
+                levelTitle = title,
+                levelBadge = badge,
                 brainRotPercentage = 0f,
                 dailyBreachesCount = 0,
                 flameScore = 100,
