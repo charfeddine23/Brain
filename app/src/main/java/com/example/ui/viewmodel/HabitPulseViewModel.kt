@@ -282,7 +282,7 @@ class HabitPulseViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     /**
-     * Queries verified foreground usage under the 1-Minute Anti-Cheat Rule.
+     * Queries exact real-time foreground usage across all session durations (every second counts).
      * Guaranteed never to crash the UI or corrupt cache.
      */
     fun refreshUsageStats() {

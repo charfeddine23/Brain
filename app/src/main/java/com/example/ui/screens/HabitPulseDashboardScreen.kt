@@ -535,23 +535,6 @@ fun HabitPulseDashboardScreen(
                     targetShrink = "60m Focused Goal",
                     isArabic = isArabic
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Anti-Cheat confirmation badge
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF10B981).copy(alpha = 0.12f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = if (isArabic) "✓ حماية ضد الغش: تتبع الوقت النشط في الواجهة فقط • الجلسات الأقل من دقيقة يتم تجاهلها" 
-                               else "✓ Anti-Cheat: Active foreground time only • Opens under 60 continuous seconds discarded",
-                        fontSize = 10.sp,
-                        color = Color(0xFF34D399),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                    )
-                }
             }
         }
 

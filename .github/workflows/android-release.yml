@@ -4,14 +4,15 @@ on:
   push:
     branches:
       - "**"
-  pull_request:
-    branches:
-      - "**"
   workflow_dispatch:
 
 permissions:
   contents: write
   actions: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
 
 jobs:
   build-and-release:
@@ -32,69 +33,62 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
 
-      - name: Make gradlew Executable
-        run: chmod +x gradlew || true
-
-      - name: Calculate Dynamic Version
+      - name: Calculate Auto-Incrementing Version
         id: dynamic_version
         run: |
-          # Count total commits on current branch for monotonic increment
           COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 1)
           if [ "$COMMIT_COUNT" -lt 1 ]; then COMMIT_COUNT=1; fi
-          
+
           RUN_NUM="${{ github.run_number }}"
           if [ -z "$RUN_NUM" ] || [ "$RUN_NUM" -lt 1 ]; then RUN_NUM=1; fi
-          
-          # Semantic versioning: 1.<commit_count>.<run_number>
+
+          # Semantic format: 1.<commit_count>.<run_number>
           VERSION_NAME="1.${COMMIT_COUNT}.${RUN_NUM}"
-          VERSION_CODE=$((COMMIT_COUNT * 100 + RUN_NUM))
-          
-          echo "Dynamic Version Name: ${VERSION_NAME}"
-          echo "Dynamic Version Code: ${VERSION_CODE}"
+          # Monotonically increasing Android versionCode (strictly > local 1 and prior builds)
+          VERSION_CODE=$((100000 + RUN_NUM))
+
+          echo "Auto Version Name: ${VERSION_NAME}"
+          echo "Auto Version Code: ${VERSION_CODE}"
           echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
           echo "VERSION_CODE=${VERSION_CODE}" >> $GITHUB_ENV
 
-      - name: Prepare Fixed Deterministic Signing Keystore
+      - name: Prepare Deterministic Signing Keystore (Enables Direct In-Place Updates)
         id: keystore_prep
         run: |
           KEYSTORE_FILE="${{ github.workspace }}/release.jks"
-          KEY_PASS="androidreleasekey2026"
-          KEY_ALIAS="habitpulse"
 
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding custom KEYSTORE_BASE64 from GitHub Secrets..."
+            echo "Decoding KEYSTORE_BASE64 from GitHub Secrets..."
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_FILE"
             STORE_P="${{ secrets.KEYSTORE_PASSWORD }}"
-            if [ -z "$STORE_P" ]; then STORE_P="$KEY_PASS"; fi
+            if [ -z "$STORE_P" ]; then STORE_P="androidreleasekey2026"; fi
             ALIAS_P="${{ secrets.KEY_ALIAS }}"
-            if [ -z "$ALIAS_P" ]; then ALIAS_P="$KEY_ALIAS"; fi
+            if [ -z "$ALIAS_P" ]; then ALIAS_P="habitpulse"; fi
             PASS_P="${{ secrets.KEY_PASSWORD }}"
             if [ -z "$PASS_P" ]; then PASS_P="$STORE_P"; fi
-            
+
             echo "STORE_PASS=$STORE_P" >> $GITHUB_ENV
             echo "KEY_AL=$ALIAS_P" >> $GITHUB_ENV
             echo "KEY_PASS=$PASS_P" >> $GITHUB_ENV
+          elif [ -f "${{ github.workspace }}/debug.keystore.base64" ]; then
+            echo "Decoding repository debug.keystore.base64 for consistent signing across every update..."
+            base64 --decode "${{ github.workspace }}/debug.keystore.base64" > "${{ github.workspace }}/debug.keystore"
+            cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
+            echo "STORE_PASS=android" >> $GITHUB_ENV
+            echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
+            echo "KEY_PASS=android" >> $GITHUB_ENV
           elif [ -f "${{ github.workspace }}/debug.keystore" ]; then
-            echo "Using repository debug.keystore as fixed signing key for seamless updates across builds..."
+            echo "Using repository debug.keystore..."
             cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
             echo "STORE_PASS=android" >> $GITHUB_ENV
             echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
             echo "KEY_PASS=android" >> $GITHUB_ENV
           else
-            echo "Generating fallback keystore with fixed credentials..."
-            keytool -genkeypair -v \
-              -keystore "$KEYSTORE_FILE" \
-              -alias "$KEY_ALIAS" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "$KEY_PASS" \
-              -keypass "$KEY_PASS" \
-              -dname "CN=Brain Pulse, OU=Mobile, O=AI Studio, L=Global, S=Global, C=US"
-            echo "STORE_PASS=$KEY_PASS" >> $GITHUB_ENV
-            echo "KEY_AL=$KEY_ALIAS" >> $GITHUB_ENV
-            echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
+            echo "Error: Deterministic keystore not found (provide debug.keystore.base64 or KEYSTORE_BASE64 secret)."
+            exit 1
           fi
 
           echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> $GITHUB_ENV
@@ -118,53 +112,29 @@ jobs:
             echo "Error: Release APK not generated!"
             exit 1
           fi
-          # Exact requested format: Brain.v1.x.x.apk
           RELEASE_NAME="Brain.v${{ env.VERSION_NAME }}.apk"
           cp "$FOUND_APK" "$RELEASE_NAME"
           echo "FINAL_APK_FILE=$RELEASE_NAME" >> $GITHUB_ENV
           echo "Formatted Output APK: $RELEASE_NAME"
 
-      - name: Clean Up Old Releases (Keep Only Latest Release)
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+      - name: Clean Up All Old Releases & Tags (Keep Only Latest)
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Cleaning up prior releases and git tags to maintain only the latest release..."
-          # List all existing releases and delete them so only the latest release remains
+          echo "Deleting all previous GitHub releases and version tags..."
           OLD_RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName' 2>/dev/null || true)
           for tag in $OLD_RELEASES; do
-            echo "Removing old release: $tag"
+            echo "Deleting old release: $tag"
             gh release delete "$tag" -y --cleanup-tag || true
           done
-
-      - name: Clean Up Old Workflow Runs (Auto-Prune Actions Storage)
-        if: always()
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Pruning older workflow run logs and artifacts to free up Actions storage..."
-          OLD_RUNS=$(gh run list --workflow=android-release.yml --limit 50 --json databaseId -q '.[].databaseId' 2>/dev/null || true)
-          CURRENT_RUN="${{ github.run_id }}"
-          for run_id in $OLD_RUNS; do
-            if [ "$run_id" != "$CURRENT_RUN" ]; then
-              echo "Deleting old workflow run: $run_id"
-              gh run delete "$run_id" || true
-            fi
+          OLD_TAGS=$(gh api "repos/${{ github.repository }}/tags?per_page=100" -q '.[].name' 2>/dev/null | grep -E '^v[0-9]+\.' || true)
+          for tag in $OLD_TAGS; do
+            echo "Deleting lingering tag: $tag"
+            gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/${tag}" >/dev/null 2>&1 || true
           done
 
-      - name: Upload Temporary Release APK Artifact
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: app-release
-          path: ${{ env.FINAL_APK_FILE }}
-          retention-days: 1
-          if-no-files-found: warn
-
       - name: Publish Latest GitHub Release (Brain.v1.x.x.apk)
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION_NAME }}
@@ -177,13 +147,33 @@ jobs:
             ### 📦 معلومات التحديث
             - **اسم ملف التثبيت:** `${{ env.FINAL_APK_FILE }}`
             - **رقم الإصدار (Version):** `${{ env.VERSION_NAME }}` (Version Code: `${{ env.VERSION_CODE }}`)
-            - **طريقة التثبيت:** موقع بنفس شهادة التوقيع الثابتة لتثبيته مباشرة فوق النسخة السابقة دون الحاجة لحذف التطبيق.
-            - **حالة التخزين:** تم تنظيف الإصدارات وعمليات التشغيل السابقة ليبقى هذا الإصدار كأحدث نسخة دائماً.
+            - **التثبيت المباشر:** موقّع بنفس شهادة التوقيع الثابتة لتثبيته مباشرة فوق النسخة السابقة دون حذف التطبيق أو فقدان البيانات.
+            - **إدارة التخزين:** تم حذف الإصدارات وسجل التشغيل السابق ليبقى أحدث إصدار فقط.
 
-            ### 🎮 محرك اللعبة ونظام التطور:
-            - **بدء من الصفر (Fresh Start)**: تم تصفير جميع المستويات والجوائز والألقاب ليبدأ المستخدم من المستوى الأول بشعلة 100% وتحديات حقيقية.
-            - **تتبع ذكي ومكافح للغش**: احتساب وقت الشاشة الفعلي في الواجهة فقط وتجاهل الفتح العرضي.
-            - **تصميم زجاجي عصري وسلس**: واجهة فائقة الأناقة مع دعم كامل للغة العربية.
+            ### 🎯 دقة التتبع ومحرك اللعبة
+            - **احتساب كل الوقت 100%**: تم إلغاء حد الـ 60 ثانية؛ كل ثانية استخدام فعلي تُحتسب فوراً لنتائج حقيقية ودقيقة.
+            - **تحديث تلقائي داخل التطبيق**: تحميل وتثبيت سلس عبر نافذة منبثقة احترافية.
           files: ${{ env.FINAL_APK_FILE }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean Up Old Actions History & Artifacts
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Pruning all previous workflow runs and artifacts to keep Actions history clean..."
+          CURRENT_RUN="${{ github.run_id }}"
+          RUN_IDS=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" -q '.workflow_runs[].id' 2>/dev/null || true)
+          for run_id in $RUN_IDS; do
+            if [ "$run_id" != "$CURRENT_RUN" ]; then
+              echo "Deleting old workflow run: $run_id"
+              gh api -X DELETE "repos/${{ github.repository }}/actions/runs/${run_id}" >/dev/null 2>&1 || true
+            fi
+          done
+          ARTIFACT_IDS=$(gh api "repos/${{ github.repository }}/actions/artifacts?per_page=100" -q '.artifacts[].id' 2>/dev/null || true)
+          for art_id in $ARTIFACT_IDS; do
+            echo "Deleting old artifact: $art_id"
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/${art_id}" >/dev/null 2>&1 || true
+          done

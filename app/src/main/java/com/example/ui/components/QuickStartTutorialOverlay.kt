@@ -512,7 +512,7 @@ private fun TutorialStepTwo(isArabic: Boolean) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Anti-Cheat Confirmation
+        // Real-Time Exact Tracking Confirmation
         Surface(
             shape = RoundedCornerShape(10.dp),
             color = Color(0xFF10B981).copy(alpha = 0.15f),
@@ -523,13 +523,13 @@ private fun TutorialStepTwo(isArabic: Boolean) {
                 modifier = Modifier.padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🛡️", fontSize = 16.sp)
+                Text("⏱️", fontSize = 16.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (isArabic) {
-                        "تتبع دقيق ومضاد للغش: يتم احتساب الوقت النشط في الواجهة فقط، ويتم تجاهل الجلسات القصيرة التي تقل عن 60 ثانية!"
+                        "تتبع حقيقي ودقيق 100%: يتم احتساب كامل وقت الاستخدام الفعلي دون تجاهل أي جلسة لضمان نتيجة واقعية."
                     } else {
-                        "Precision Anti-Cheat: Foreground active time only; continuous sessions under 60 seconds are discarded."
+                        "100% Real-Time Precision: Every second of foreground usage counts with zero discarded sessions for accurate results."
                     },
                     fontSize = 11.sp,
                     color = Color(0xFF6EE7B7)

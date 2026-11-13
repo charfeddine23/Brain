@@ -171,15 +171,16 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun `anti-cheat rule discards accidental opens under 60 continuous seconds`() {
-        assertEquals(60_000L, HabitPulseEngine.ANTI_CHEAT_MIN_SESSION_MILLIS)
-
-        val accidentalGlance = 45_000L
-        val isValidSession = accidentalGlance >= HabitPulseEngine.ANTI_CHEAT_MIN_SESSION_MILLIS
-        assertFalse(isValidSession)
-
-        val realSession = 65_000L
-        assertTrue(realSession >= HabitPulseEngine.ANTI_CHEAT_MIN_SESSION_MILLIS)
+    fun `all foreground sessions including under 60 seconds accumulate accurately`() {
+        val session1Millis = 25_000L
+        val session2Millis = 40_000L
+        val usageData = com.example.data.AppUsageData(
+            packageName = "com.example.social",
+            launches = 2,
+            foregroundTimeMillis = session1Millis + session2Millis
+        )
+        assertEquals(65_000L, usageData.foregroundTimeMillis)
+        assertEquals(1, usageData.foregroundMinutes)
     }
 
     @Test

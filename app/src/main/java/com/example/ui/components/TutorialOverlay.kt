@@ -650,9 +650,9 @@ private fun StepShrinkingLimits(isArabic: Boolean) {
 
         TutorialBullet(
             icon = Icons.Default.Timer,
-            title = if (isArabic) "حماية صارمة ضد الغش (Anti-Cheat)" else "1-Minute Anti-Cheat Guard",
-            description = if (isArabic) "يتم احتساب وقت الواجهة الأمامي الحقيقي فقط. أي فتح عارض للتطبيق أقل من 60 ثانية يتم تجاهله لحمايتك."
-                          else "Only real foreground time counts. Accidental opens under 60 continuous seconds are automatically discarded."
+            title = if (isArabic) "تتبع حقيقي ودقيق 100%" else "100% Real-Time Tracking",
+            description = if (isArabic) "يتم احتساب كامل وقت الاستخدام الفعلي في الواجهة دون تجاهل أي ثانية لتكون النتيجة حقيقية ودقيقة."
+                          else "Every second of active foreground usage is counted without discarding short opens for real, accurate results."
         )
     }
 }

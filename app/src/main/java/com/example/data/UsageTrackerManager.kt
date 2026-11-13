@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
-import com.example.model.HabitPulseEngine
 import com.example.model.InstalledAppInfo
 import java.util.Calendar
 
@@ -154,12 +153,11 @@ class UsageTrackerManager(private val context: Context) {
             Log.w(TAG, "Unexpected error in queryUsageStats", e)
         }
 
-        // 2. Event-level refinement for exact foreground sessions and anti-cheat rule
+        // 2. Event-level refinement for exact 100% foreground time (all sessions counted)
         try {
             val events = mgr.queryEvents(startTime, endTime)
             if (events != null) {
                 val event = UsageEvents.Event()
-                val minSessionMillis = HabitPulseEngine.ANTI_CHEAT_MIN_SESSION_MILLIS
                 val lastResumeMap = mutableMapOf<String, Long>()
                 val refinedTimeMap = mutableMapOf<String, Long>()
                 val refinedLaunchesMap = mutableMapOf<String, Int>()
@@ -172,17 +170,17 @@ class UsageTrackerManager(private val context: Context) {
 
                         when (event.eventType) {
                             UsageEvents.Event.ACTIVITY_RESUMED -> {
-                                lastResumeMap[pkg] = event.timeStamp
+                                if (!lastResumeMap.containsKey(pkg)) {
+                                    lastResumeMap[pkg] = event.timeStamp
+                                }
                             }
                             UsageEvents.Event.ACTIVITY_PAUSED,
                             UsageEvents.Event.ACTIVITY_STOPPED -> {
                                 val resumedTime = lastResumeMap[pkg]
                                 if (resumedTime != null && event.timeStamp > resumedTime) {
                                     val sessionDuration = event.timeStamp - resumedTime
-                                    if (sessionDuration >= minSessionMillis) {
-                                        refinedTimeMap[pkg] = (refinedTimeMap[pkg] ?: 0L) + sessionDuration
-                                        refinedLaunchesMap[pkg] = (refinedLaunchesMap[pkg] ?: 0) + 1
-                                    }
+                                    refinedTimeMap[pkg] = (refinedTimeMap[pkg] ?: 0L) + sessionDuration
+                                    refinedLaunchesMap[pkg] = (refinedLaunchesMap[pkg] ?: 0) + 1
                                     lastResumeMap.remove(pkg)
                                 }
                             }
@@ -192,12 +190,12 @@ class UsageTrackerManager(private val context: Context) {
                     }
                 }
 
-                // Check ongoing foreground session
+                // Include ongoing foreground session without any minimum threshold
                 for ((pkg, resumedTime) in lastResumeMap) {
                     try {
                         if (pkg == context.packageName) continue
                         val ongoingDuration = endTime - resumedTime
-                        if (ongoingDuration >= minSessionMillis) {
+                        if (ongoingDuration > 0L) {
                             refinedTimeMap[pkg] = (refinedTimeMap[pkg] ?: 0L) + ongoingDuration
                             refinedLaunchesMap[pkg] = (refinedLaunchesMap[pkg] ?: 0) + 1
                         }

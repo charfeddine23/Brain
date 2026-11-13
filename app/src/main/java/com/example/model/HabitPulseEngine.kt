@@ -158,7 +158,7 @@ data class DailyEvaluationResult(
  * 1. 100-Level Brain Evolution Engine & Points Architecture (1000 points per level pool).
  * 2. Unconstrained dynamic promotion based on accumulated points.
  * 3. Dynamic Shrinking Time Rule (Level 1 to 100).
- * 4. Anti-Cheat & 1-Minute Foreground Session Threshold.
+ * 4. Full 100% Foreground Session Time Tracking (every second counts).
  * 5. The 3 Daily Evaluation Outcomes (Clean Sweep, Single Breach, Multi-Breach).
  * 6. Escalating Streak Bonus System:
  *    - Days 1 - 89:   +500 points/day
@@ -174,9 +174,6 @@ object HabitPulseEngine {
     const val MAX_POINTS = (MAX_LEVEL - 1) * POINTS_PER_LEVEL // 99,000 pts for level 100
     const val DAILY_BUFFER_POOL_SIZE = 1000
     const val PENALTY_PER_10_MIN_BLOCK = 50
-
-    // Anti-Cheat: Accidental opens under 60 continuous seconds are discarded
-    const val ANTI_CHEAT_MIN_SESSION_MILLIS = 60_000L
 
     /**
      * Points Pool Math:
