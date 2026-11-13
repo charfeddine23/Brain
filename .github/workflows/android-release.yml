@@ -36,18 +36,25 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Accept Android SDK Licenses
+        run: |
+          SDK_DIR="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -n "$SDK_DIR" ] && [ -x "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          fi
+
       - name: Calculate Auto-Incrementing Version
         id: dynamic_version
         run: |
           COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo 1)
-          if [ "$COMMIT_COUNT" -lt 1 ]; then COMMIT_COUNT=1; fi
+          if [ -z "$COMMIT_COUNT" ] || [ "$COMMIT_COUNT" -lt 1 ]; then COMMIT_COUNT=1; fi
 
           RUN_NUM="${{ github.run_number }}"
           if [ -z "$RUN_NUM" ] || [ "$RUN_NUM" -lt 1 ]; then RUN_NUM=1; fi
 
           # Semantic format: 1.<commit_count>.<run_number>
           VERSION_NAME="1.${COMMIT_COUNT}.${RUN_NUM}"
-          # Monotonically increasing Android versionCode (strictly > local 1 and prior builds)
+          # Strictly monotonic Android versionCode (always > local 1 and all prior runs)
           VERSION_CODE=$((100000 + RUN_NUM))
 
           echo "Auto Version Name: ${VERSION_NAME}"
@@ -59,10 +66,11 @@ jobs:
         id: keystore_prep
         run: |
           KEYSTORE_FILE="${{ github.workspace }}/release.jks"
+          DEFAULT_KEYSTORE_B64="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"
 
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding KEYSTORE_BASE64 from GitHub Secrets..."
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_FILE"
+            echo "Decoding custom KEYSTORE_BASE64 from GitHub Secrets..."
+            printf '%s' "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\r\n ' | base64 --decode > "$KEYSTORE_FILE"
             STORE_P="${{ secrets.KEYSTORE_PASSWORD }}"
             if [ -z "$STORE_P" ]; then STORE_P="androidreleasekey2026"; fi
             ALIAS_P="${{ secrets.KEY_ALIAS }}"
@@ -74,20 +82,29 @@ jobs:
             echo "KEY_AL=$ALIAS_P" >> $GITHUB_ENV
             echo "KEY_PASS=$PASS_P" >> $GITHUB_ENV
           elif [ -f "${{ github.workspace }}/debug.keystore.base64" ]; then
-            echo "Decoding repository debug.keystore.base64 for consistent signing across every update..."
-            base64 --decode "${{ github.workspace }}/debug.keystore.base64" > "${{ github.workspace }}/debug.keystore"
+            echo "Decoding repository debug.keystore.base64 for deterministic updates..."
+            tr -d '\r\n ' < "${{ github.workspace }}/debug.keystore.base64" | base64 --decode > "${{ github.workspace }}/debug.keystore"
             cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
             echo "STORE_PASS=android" >> $GITHUB_ENV
             echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
             echo "KEY_PASS=android" >> $GITHUB_ENV
           elif [ -f "${{ github.workspace }}/debug.keystore" ]; then
-            echo "Using repository debug.keystore..."
+            echo "Using repository debug.keystore for deterministic updates..."
             cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
             echo "STORE_PASS=android" >> $GITHUB_ENV
             echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
             echo "KEY_PASS=android" >> $GITHUB_ENV
           else
-            echo "Error: Deterministic keystore not found (provide debug.keystore.base64 or KEYSTORE_BASE64 secret)."
+            echo "Using deterministic fallback signing keystore (matches local installs for direct in-place updates)..."
+            printf '%s' "$DEFAULT_KEYSTORE_B64" | base64 --decode > "${{ github.workspace }}/debug.keystore"
+            cp "${{ github.workspace }}/debug.keystore" "$KEYSTORE_FILE"
+            echo "STORE_PASS=android" >> $GITHUB_ENV
+            echo "KEY_AL=androiddebugkey" >> $GITHUB_ENV
+            echo "KEY_PASS=android" >> $GITHUB_ENV
+          fi
+
+          if [ ! -s "$KEYSTORE_FILE" ]; then
+            echo "Error: Keystore file is empty or missing!"
             exit 1
           fi
 
@@ -104,10 +121,13 @@ jobs:
           KEY_ALIAS: ${{ env.KEY_AL }}
           KEY_PASSWORD: ${{ env.KEY_PASS }}
 
-      - name: Format Release APK Filename (Brain.v1.x.x.apk)
+      - name: Format & Verify Release APK Filename (Brain.v1.x.x.apk)
         id: organize_apk
         run: |
-          FOUND_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          FOUND_APK=$(find app/build/outputs/apk/release/ -name "*.apk" ! -name "*unsigned*" | head -n 1)
+          if [ -z "$FOUND_APK" ]; then
+            FOUND_APK=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          fi
           if [ -z "$FOUND_APK" ]; then
             echo "Error: Release APK not generated!"
             exit 1
@@ -116,23 +136,7 @@ jobs:
           cp "$FOUND_APK" "$RELEASE_NAME"
           echo "FINAL_APK_FILE=$RELEASE_NAME" >> $GITHUB_ENV
           echo "Formatted Output APK: $RELEASE_NAME"
-
-      - name: Clean Up All Old Releases & Tags (Keep Only Latest)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Deleting all previous GitHub releases and version tags..."
-          OLD_RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName' 2>/dev/null || true)
-          for tag in $OLD_RELEASES; do
-            echo "Deleting old release: $tag"
-            gh release delete "$tag" -y --cleanup-tag || true
-          done
-          OLD_TAGS=$(gh api "repos/${{ github.repository }}/tags?per_page=100" -q '.[].name' 2>/dev/null | grep -E '^v[0-9]+\.' || true)
-          for tag in $OLD_TAGS; do
-            echo "Deleting lingering tag: $tag"
-            gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/${tag}" >/dev/null 2>&1 || true
-          done
+          keytool -printcert -jarfile "$RELEASE_NAME" | head -n 10 || true
 
       - name: Publish Latest GitHub Release (Brain.v1.x.x.apk)
         uses: softprops/action-gh-release@v2
@@ -140,7 +144,7 @@ jobs:
           tag_name: v${{ env.VERSION_NAME }}
           name: "Brain Pulse v${{ env.VERSION_NAME }}"
           generate_release_notes: true
-          make_latest: true
+          make_latest: 'true'
           body: |
             ## 🧠 Brain Pulse v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})
 
@@ -157,15 +161,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Clean Up Old Releases & Tags (Keep Only Latest)
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          CURRENT_TAG="v${{ env.VERSION_NAME }}"
+          echo "Keeping latest release $CURRENT_TAG and deleting all older releases/tags..."
+          OLD_RELEASES=$(gh release list --limit 100 --json tagName -q '.[].tagName' 2>/dev/null || true)
+          for tag in $OLD_RELEASES; do
+            if [ "$tag" != "$CURRENT_TAG" ]; then
+              echo "Deleting old release: $tag"
+              gh release delete "$tag" -y --cleanup-tag || true
+            fi
+          done
+          OLD_TAGS=$(gh api "repos/${{ github.repository }}/tags?per_page=100" -q '.[].name' 2>/dev/null | grep -E '^v[0-9]+\.' || true)
+          for tag in $OLD_TAGS; do
+            if [ "$tag" != "$CURRENT_TAG" ]; then
+              echo "Deleting lingering tag: $tag"
+              gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/${tag}" >/dev/null 2>&1 || true
+            fi
+          done
+
       - name: Clean Up Old Actions History & Artifacts
         if: always()
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Pruning all previous workflow runs and artifacts to keep Actions history clean..."
+          echo "Pruning previous completed workflow runs and artifacts to keep Actions history clean..."
           CURRENT_RUN="${{ github.run_id }}"
-          RUN_IDS=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" -q '.workflow_runs[].id' 2>/dev/null || true)
+          RUN_IDS=$(gh api "repos/${{ github.repository }}/actions/runs?per_page=100" -q '.workflow_runs[] | select(.status == "completed") | .id' 2>/dev/null || true)
           for run_id in $RUN_IDS; do
             if [ "$run_id" != "$CURRENT_RUN" ]; then
               echo "Deleting old workflow run: $run_id"
